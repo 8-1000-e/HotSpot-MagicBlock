@@ -6,7 +6,7 @@
 
 Number Rush est un jeu multijoueur on-chain déployé sur Solana via Magic Block. Le concept est simple : un nombre secret est généré aléatoirement, et les joueurs s'affrontent pour le trouver le plus vite possible, en un minimum de tentatives. Chaque partie implique une mise en SOL, et le pot est redistribué en fin de partie selon les performances de chaque joueur.
 
-L'ensemble de la logique de jeu tourne sur un ephemeral rollup privé fourni par Magic Block, ce qui garantit des transactions ultra-rapides, la confidentialité des chiffres soumis en temps réel, et un règlement final transparent et vérifiable sur la blockchain Solana.
+L'ensemble de la logique de jeu tourne sur un Private Ephemeral Rollup (PER) fourni par Magic Block, exécuté dans un TEE (Trusted Execution Environment). Cela garantit des transactions ultra-rapides, la confidentialité cryptographiquement enforced des chiffres soumis en temps réel, et un règlement final transparent et vérifiable sur la blockchain Solana.
 
 ---
 
@@ -24,7 +24,7 @@ L'ensemble de la logique de jeu tourne sur un ephemeral rollup privé fourni par
 Une fois le lobby complet et les mises verrouillées :
 
 1. Le VRF (Verifiable Random Function) de Magic Block génère un nombre secret entre 0 et 1000.
-2. Ce nombre est commité on-chain sur l'ephemeral rollup privé avant l'ouverture des soumissions. Aucun joueur, ni même la plateforme, ne peut modifier ce nombre après ce point.
+2. Ce nombre est commité on-chain sur le PER avant l'ouverture des soumissions. Aucun joueur, ni même la plateforme, ne peut modifier ce nombre après ce point.
 3. La première manche commence.
 
 ### Déroulement d'un round
@@ -35,7 +35,7 @@ Chaque partie se joue sur 5 rounds. Pour chaque round :
 
 - Tous les joueurs soumettent simultanément un nombre entre 0 et 1000.
 - Chaque joueur a 5 secondes pour envoyer son chiffre. Passé ce délai, la tentative du joueur est ignorée pour ce tour (elle compte quand même comme un coup utilisé).
-- Les chiffres soumis transitent sur l'ephemeral rollup privé et ne sont pas visibles par les autres joueurs en temps réel.
+- Les chiffres soumis sont stockés dans le PlayerGuess du joueur, protégé par le Permission Program du PER. Seul le joueur propriétaire peut lire ses propres guesses — cette privacy est enforced cryptographiquement par le TEE.
 
 **Phase de feedback (immédiate)**
 
@@ -51,11 +51,14 @@ Après chaque tentative, chaque joueur reçoit :
 
 **Ce que les autres joueurs voient**
 
-Les adversaires voient pour chaque joueur l'état de proximité (chaud, froid, etc.) et la direction (+/-), mais pas le chiffre exact soumis. Cette asymétrie d'information est le cœur de la dimension stratégique du jeu.
+Les adversaires voient pour chaque joueur l'état de proximité (chaud, froid, etc.) et la direction (+/-), mais pas le chiffre exact soumis. Cette asymétrie d'information est le cœur de la dimension stratégique du jeu. La privacy est enforced par le Permission Program — même un client modifié ne peut pas lire les guesses des autres joueurs sur le PER.
 
 **Fin de round**
 
-Un round se termine lorsque tous les joueurs actifs ont trouvé le nombre, ou lorsqu'une limite de tentatives est atteinte (voir section anti-blocage). À la fin de chaque round, les chiffres soumis par tous les joueurs sont révélés à tout le monde. Le nombre cible est également révélé.
+Un round se termine lorsque tous les joueurs actifs ont trouvé le nombre, ou lorsqu'une limite de tentatives est atteinte (voir section anti-blocage). À la fin de chaque round :
+- Les permissions sur les PlayerGuess sont ouvertes (members: None) → tout le monde peut voir les guesses de tout le monde
+- Le nombre cible est révélé dans le RoundReveal
+- Les permissions sont re-créées (members: [owner]) pour le round suivant
 
 Un nouveau nombre est généré via VRF pour le round suivant.
 
@@ -114,154 +117,117 @@ La commission de la plateforme est déduite du pot brut avant distribution.
 ```
 [Joueurs] ──► [Frontend (React/Next.js)]
                     │
-                    ▼
-         [Magic Block Ephemeral Rollup Privé]
+                    ▼ (auth token + TEE verification)
+         [Magic Block Private Ephemeral Rollup (PER)]
+         [TEE — Trusted Execution Environment]
                     │
          ┌──────────┴──────────┐
-         │   BOLT ECS Engine   │
+         │  Anchor Program     │
+         │  "number_rush"      │
          │                     │
-         │  Entities :         │
-         │  - GameSession      │
-         │  - Player           │
-         │                     │
-         │  Components :       │
-         │  - PlayerGuess      │  ← Privé
-         │  - PlayerState      │  ← Exposé au frontend
-         │  - PlayerRegistry   │  ← Public (sur l'entité GameSession)
-         │  - RoundData        │  ← Révélé en fin de round
+         │  Accounts :         │
+         │  - GameConfig       │  ← Public
+         │  - PlayerState      │  ← Public (proximité, direction)
+         │  - PlayerGuess      │  ← Privé (Permission Program)
+         │  - Vault            │  ← SOL pot
          │  - Leaderboard      │  ← Public
+         │  - RoundReveal      │  ← Public après fin de round
          │                     │
-         │  Systems :          │
-         │  - GuessProcessor   │
-         │  - StateUpdater     │
-         │  - RoundManager     │
-         │  - LeaderboardSync  │
+         │  Instructions :     │
+         │  - init_game        │
+         │  - spawn_player     │
+         │  - delegate_game    │
+         │  - delegate_player  │
+         │  - start_game       │
+         │  - submit_guess     │  ← Via session key (no popup)
+         │  - end_round        │
+         │  - end_game         │
          └─────────────────────┘
                     │
                     ▼
          [Settlement Solana Devnet]
-         (distribution du pot, fin de partie)
+         (commit + undelegate, distribution du pot)
 ```
 
-### BOLT ECS — pourquoi c'est le bon choix
+### Architecture — Anchor pur + PER
 
-BOLT est un framework Entity Component System (ECS) natif Solana, conçu pour les jeux on-chain. Il est nativement compatible avec les ephemeral rollups Magic Block.
+Le programme utilise Anchor 0.32.1 avec le SDK `ephemeral-rollups-sdk` pour la délégation vers le Private Ephemeral Rollup. Pas de BOLT ECS — le jeu n'a pas besoin du pattern Entity/Component/System car il n'y a pas d'entités en mouvement temps réel.
 
-**Entity** : une session de jeu est une entité. Chaque joueur est une entité.
+**Programme unique** : `number_rush` contient toute la logique (accounts + instructions + delegation).
 
-**Component** : les données attachées à une entité. Exemples dans Number Rush :
-- `PlayerGuess` : le chiffre soumis par le joueur au tour actuel (privé)
-- `PlayerState` : l'état de proximité calculé (chaud/froid, +/-) visible par tous
-- `PlayerRegistry` : registre centralisé de tous les joueurs actifs, attaché à l'entité GameSession (public)
-- `RoundReveal` : les chiffres de tous les joueurs, déverrouillés en fin de round
-- `Leaderboard` : le classement global, mis à jour après chaque round
+**Accounts** (state) :
 
-**System** : la logique qui transforme les composants. Exemples :
-- `GuessProcessor` : reçoit un chiffre soumis, le compare au nombre cible, calcule l'état
-- `RoundManager` : gère les timers, détecte la fin d'un round, déclenche le reveal
-- `LeaderboardSync` : met à jour et trie le classement à chaque fin de round
+| Account | PDA Seeds | Rôle | Visibilité PER |
+|---|---|---|---|
+| `GameConfig` | `[game, game_id]` | Status, rounds, target, bet, joueurs registry | Public |
+| `PlayerState` | `[player, game, authority]` | Proximité, direction, attempts, alive | Public |
+| `PlayerGuess` | `[guess, game, authority]` | Historique des guesses du round en cours | **Privé** (Permission Program) |
+| `Vault` | `[vault, game]` | Pot SOL, deposits, payout status | Public |
+| `Leaderboard` | `[leaderboard, game]` | Classement trié par attempts + tiebreak time | Public |
+| `RoundReveal` | `[reveal, game]` | Targets révélés, résumé par joueur par round | Public après round |
 
-ECS est particulièrement adapté ici car l'état du jeu évolue très vite (5 secondes par coup) avec plusieurs entités en parallèle. La séparation données/logique propre à ECS facilite aussi les audits de sécurité.
+**Instructions** :
 
-### PlayerRegistry — registre centralisé des joueurs
+| Instruction | Quand | Signé par | Où |
+|---|---|---|---|
+| `init_game` | Création du lobby | Wallet (creator) | L1 |
+| `spawn_player` | Join + deposit bet | Wallet (player) | L1 |
+| `delegate_game` | Après init | Wallet (creator) | L1 → PER |
+| `delegate_player` | Après spawn | Wallet (player) | L1 → PER |
+| `start_game` | Lobby terminé | Wallet ou crank | PER |
+| `submit_guess` | Chaque tentative | **Session key** (no popup) | PER |
+| `end_round` | Fin de round | Wallet ou crank | PER |
+| `end_game` | Fin partie + payout | Wallet ou crank | PER → L1 (commit) |
 
-Le `PlayerRegistry` est un component BOLT attaché à l'entité GameSession (pas aux entités joueurs individuelles). Il sert de registre centralisé pour tracker tous les joueurs actifs dans une partie. Ce pattern est utilisé dans tous les jeux TNTX multijoueurs (CUBE3D, red-light, Number Rush).
+### Private Ephemeral Rollup (PER) — comment ça marche
 
-**Structure du component :**
+Le PER est un environnement d'exécution temporaire qui tourne dans un TEE (Trusted Execution Environment). Contrairement au ER classique utilisé dans CUBE3D/red-light, le PER enforce la privacy cryptographiquement.
 
-```rust
-use bolt_lang::*;
+**Différences avec le ER classique :**
 
-pub const MAX_PLAYERS: usize = 10;
+| | ER classique (CUBE3D, red-light) | PER / Private ER (Number Rush) |
+|---|---|---|
+| Exécution | ER standard | TEE (Trusted Execution Environment) |
+| RPC | Public, tout le monde subscribe | Auth token requis (signature wallet) |
+| Visibilité comptes | Tout le monde lit tout | **Permission Program** contrôle qui lit quoi |
+| Validator | magicblock.app standard | TEE validators spécifiques |
+| Frontend connect | `new Connection(ER_RPC)` | `verifyTeeRpcIntegrity()` → `getAuthToken()` → `?token=...` |
 
-#[component(delegate)]
-pub struct PlayerRegistry {
-    pub players: [[u8; 32]; MAX_PLAYERS],        // PDAs Position des joueurs (raw bytes)
-    pub player_states: [[u8; 32]; MAX_PLAYERS],   // PDAs PlayerState des joueurs (raw bytes)
-    pub count: u8,                                 // Nombre de joueurs enregistrés
-}
-```
+**Permission Program** (`ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1`) :
+- Chaque `PlayerGuess` a un compte `permission` associé
+- `members = [player_authority]` → seul ce joueur peut lire
+- En fin de round : `members = None` → tout le monde peut lire (reveal)
+- Début du round suivant : permissions re-créées
 
-**Pourquoi `[u8; 32]` et pas `Pubkey` ?**
-Le trait `Default` n'est pas implémenté pour les tableaux de `Pubkey` en Rust. On stocke donc les pubkeys en raw bytes (`[u8; 32]`) et on les convertit via `Pubkey::new_from_array()` côté lecture.
+**TEE Validators** :
+- Devnet : `FnE6VJT5QNZdedZPnCoLsARgBwoE6DeJNjBs2H1gySXA`
+- Mainnet : `MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo`
 
-**Méthode `add_player` :**
+**Delegation Program** : `DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh`
 
-```rust
-impl PlayerRegistry {
-    pub fn add_player(&mut self, pubkey: Pubkey, player_state_pda: Pubkey) -> Result<()> {
-        require!(self.count < MAX_PLAYERS as u8, RegistryError::RegistryFull);
-        self.players[self.count as usize] = pubkey.to_bytes();
-        self.player_states[self.count as usize] = player_state_pda.to_bytes();
-        self.count += 1;
-        Ok(())
-    }
-}
-```
-
-**Rôle dans le flow de jeu :**
-
-1. **Création de la partie** : Le `PlayerRegistry` est initialisé sur l'entité GameSession avec `count = 0`.
-2. **Join d'un joueur** : Le system `SpawnPlayer` appelle `add_player()` pour enregistrer le PDA Position et le PDA PlayerState du nouveau joueur.
-3. **Discovery côté frontend** : Le client souscrit au PDA du `PlayerRegistry` via WebSocket. À chaque changement (nouveau joueur), il parse les nouveaux PDAs et crée automatiquement des souscriptions pour chaque `PlayerState`.
-4. **Delegation** : Le component est marqué `#[component(delegate)]`, ce qui permet sa délégation vers l'ephemeral rollup. Les mises à jour sont donc instantanées sur le ER.
-
-**Parsing côté frontend :**
-
+**Auth côté frontend :**
 ```typescript
-function parsePlayerRegistry(data: Buffer) {
-  const offset = 8; // skip discriminator BOLT
-  // players: 10 * 32 bytes = 320 bytes (offset 8 → 328)
-  // player_states: 10 * 32 bytes = 320 bytes (offset 328 → 648)
-  // count: 1 byte (offset 648)
-  const count = data.readUInt8(offset + 320 + 320);
+import { verifyTeeRpcIntegrity, getAuthToken } from "@magicblock-labs/ephemeral-rollups-sdk";
 
-  const playerStates: PublicKey[] = [];
-  for (let i = 0; i < count; i++) {
-    const start = offset + 320 + i * 32;
-    const bytes = data.slice(start, start + 32);
-    playerStates.push(new PublicKey(bytes));
-  }
-  return { count, playerStates };
-}
+const isVerified = await verifyTeeRpcIntegrity(EPHEMERAL_RPC_URL);
+const token = await getAuthToken(
+  EPHEMERAL_RPC_URL,
+  wallet.publicKey,
+  (msg: Uint8Array) => wallet.signMessage(msg)
+);
+const perConnection = new Connection(`https://devnet-tee.magicblock.app?token=${token}`);
 ```
 
-**Flow WebSocket :**
+**Visibilité sur le PER :**
 
-```
-Frontend subscribe au PlayerRegistry PDA (sur l'entité GameSession)
-  │
-  ▼ onAccountChange détecte count++ (nouveau joueur)
-  │
-  ▼ Parse le nouveau PlayerState PDA depuis player_states[count-1]
-  │
-  ▼ Crée une souscription WebSocket sur ce PlayerState PDA
-  │
-  ▼ Reçoit les updates en temps réel (proximité, direction, tentatives)
-```
-
-Ce pattern évite au frontend de devoir connaître à l'avance les PDAs de tous les joueurs. Il suffit de surveiller un seul account (le registre) pour découvrir dynamiquement tous les participants.
-
-### Private Ephemeral Rollup — ce que "privé" signifie vraiment
-
-L'ephemeral rollup de Magic Block est un environnement d'exécution temporaire délégué depuis Solana. Il traite les transactions à très haute vitesse sans les publier immédiatement on-chain.
-
-**"Privé" ne veut pas dire que rien n'est visible.** Cela signifie que les transactions de l'ephemeral rollup ne sont pas lisibles publiquement sur la chaîne principale pendant la session.
-
-En pratique :
-- Le serveur de jeu (autorité du rollup) a accès à tout l'état.
-- Tu contrôles ce que tu exposes côté client via ton API.
-- Tu peux très bien afficher des données issues du rollup — tu décides lesquelles.
-
-Pour Number Rush, la séparation est la suivante :
-
-| Composant | Visibilité |
-|---|---|
-| PlayerGuess (chiffre soumis) | Privé pendant le round, révélé en fin de round |
-| PlayerState (chaud/froid, +/-) | Public en temps réel pour tous |
-| PlayerRegistry | Public en permanence (discovery des joueurs) |
-| RoundReveal | Public uniquement après la fin du round |
-| Leaderboard | Public en permanence |
+| Account | Visibilité PER | Mécanisme |
+|---|---|---|
+| PlayerGuess (chiffre soumis) | Privé pendant le round, révélé en fin de round | Permission Program (members) |
+| PlayerState (chaud/froid, +/-) | Public en temps réel pour tous | Pas de permission |
+| GameConfig | Public en permanence | Pas de permission |
+| Leaderboard | Public en permanence | Pas de permission |
+| RoundReveal | Public après fin de round | Rempli uniquement à end_round |
+| Vault | Public | Pas de permission |
 
 ### VRF Magic Block
 
@@ -269,22 +235,33 @@ Le VRF (Verifiable Random Function) est utilisé pour générer le nombre cible 
 
 Règle importante : le VRF est appelé et son résultat est commité on-chain AVANT l'ouverture des soumissions des joueurs. Cette séquence est obligatoire pour garantir la fairness. Si le nombre était généré après les premières soumissions, un vecteur de manipulation existerait.
 
+### Session keys
+
+Les session keys permettent aux joueurs de soumettre des guesses sans popup wallet à chaque tentative. Le joueur signe une seule fois pour créer sa session key, puis toutes les TX gameplay sont signées par la session key.
+
+```
+1. Player signe 1 TX wallet → crée SessionToken PDA
+2. Session key = keypair éphémère (validité 60min, funded 0.002 SOL)
+3. submit_guess TX signées par session key → 0 popup
+4. Session expire ou révoquée manuellement
+```
+
 ### Settlement Solana Devnet
 
-À la fin de la partie, l'ephemeral rollup se ferme et le résultat final (leaderboard, distribution du pot) est réglé sur Solana Devnet. Ce mécanisme garantit que la distribution des fonds est transparente et auditée publiquement, même si la partie elle-même s'est déroulée sur le rollup privé.
+À la fin de la partie, le PER commit l'état final et undelegate les comptes vers Solana Devnet. Le résultat final (leaderboard, distribution du pot) est réglé sur L1. Ce mécanisme garantit que la distribution des fonds est transparente et auditée publiquement, même si la partie elle-même s'est déroulée sur le PER privé.
 
 ---
 
 ## Sécurité et fairness
 
 **Impossibilité de voir les chiffres des adversaires en temps réel**
-Les soumissions transitent sur le rollup privé. Aucune transaction publique ne révèle le chiffre avant la fin du round. Un joueur ne peut pas intercepter les chiffres adverses en lisant la blockchain.
+Les guesses sont protégés par le Permission Program du PER. Même un client modifié ne peut pas lire les PlayerGuess des autres joueurs — la privacy est enforced au niveau du TEE, pas par convention frontend.
 
 **Impossibilité de manipuler le nombre cible**
 Le nombre cible est généré via VRF et commité avant les soumissions. Il est immuable une fois la manche lancée.
 
 **Fonds verrouillés dès le départ**
-Les mises sont envoyées dans un smart contract au moment du lobby. Ni la plateforme ni les joueurs ne peuvent y accéder pendant la partie. La distribution se fait automatiquement à la fin, selon les règles encodées dans le contrat.
+Les mises sont envoyées dans le Vault PDA au moment du spawn. Ni la plateforme ni les joueurs ne peuvent y accéder pendant la partie. La distribution se fait automatiquement à la fin, selon les règles encodées dans le contrat.
 
 **Collusion entre joueurs**
 La collusion externe (deux joueurs qui se partagent leurs chiffres via un chat vocal) est difficile à éliminer techniquement dans tout jeu multijoueur. Elle est limitée par le timer de 5 secondes par tentative et par le fait que les chiffres ne sont révélés qu'en fin de round. La dimension "inférence à partir des états adverses" reste un skill légitime et non exploitable via collusion directe.
@@ -302,7 +279,7 @@ La collusion externe (deux joueurs qui se partagent leurs chiffres via un chat v
 | Limite par round | 15 tentatives max |
 | Exclusion passive | 3 rounds sans soumission = hors leaderboard |
 | Génération du nombre | VRF Magic Block, commité avant les soumissions |
-| Confidentialité | Ephemeral rollup privé, reveal en fin de round |
-| Framework on-chain | BOLT ECS sur Magic Block |
-| Règlement final | Solana Devnet |
+| Confidentialité | Private Ephemeral Rollup (PER) + Permission Program + TEE |
+| Framework on-chain | Anchor 0.32.1 + ephemeral-rollups-sdk |
+| Règlement final | Solana Devnet (commit + undelegate) |
 | Commission plateforme | % prélevé sur le pot brut avant distribution |
