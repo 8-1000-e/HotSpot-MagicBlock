@@ -179,7 +179,8 @@ programs/number-rush/src/
     ├── delegate_game.rs
     ├── delegate_meta.rs
     ├── delegate_player.rs
-    ├── create_player_permission.rs ← Permission Program CPI
+    ├── create_player_permission.rs       ← Permission Program CPI (PlayerGuess privé)
+    ├── create_round_secret_permission.rs ← Permission Program CPI (RoundSecret privé)
     ├── start_game.rs
     ├── submit_guess.rs
     ├── end_round.rs
@@ -202,16 +203,31 @@ programs/number-rush/src/
 
 | Instruction | Quand | Signé par | Où |
 |---|---|---|---|
-| `init_game` | Création du lobby | Wallet (creator) | L1 |
-| `spawn_player` | Join + deposit bet | Wallet (player) | L1 |
-| `delegate_game` | Après init | Wallet (creator) | L1 → PER (game_config + vault + round_secret) |
-| `delegate_meta` | Après init | Wallet (creator) | L1 → PER (leaderboard + round_reveal) |
-| `delegate_player` | Après spawn | Wallet (player) | L1 → PER (player_state + player_guess) |
-| `create_player_permission` | Après delegate_player | Wallet (player) | PER |
-| `start_game` | Lobby terminé | Wallet ou crank | PER |
+| `init_game` | Création du lobby | Creator + serveur | L1 |
+| `spawn_player` | Join + deposit bet | **Player** + serveur | L1 |
+| `delegate_game` | Après init | Serveur | L1 → PER (game_config + vault + round_secret) |
+| `delegate_meta` | Après init | Serveur | L1 → PER (leaderboard + round_reveal) |
+| `delegate_player` | Après spawn | Serveur | L1 → PER (player_state + player_guess) |
+| `create_player_permission` | Après delegate_player | Serveur | PER |
+| `create_round_secret_permission` | Après delegate_game | Serveur | PER |
+| `start_game` | Lobby terminé | Serveur ou crank | PER |
 | `submit_guess` | Chaque tentative | **Session key** (no popup) | PER |
-| `end_round` | Fin de round | Wallet ou crank | PER |
-| `end_game` | Fin partie + payout | Wallet ou crank | PER → L1 (commit + undelegate) |
+| `end_round` | Fin de round | Serveur ou crank | PER |
+| `end_game` | Fin partie + payout | Serveur ou crank | PER → L1 (commit + undelegate) |
+
+**Pattern `payer ≠ player`** : Pour minimiser la friction UX, le serveur backend (`payer`) prend en charge tous les coûts opérationnels :
+- Rent des PDAs (player_state, player_guess, permissions)
+- Frais de délégation
+- Frais de création des permissions
+
+Le **joueur** ne signe **qu'une seule TX** dans tout le flow de join (`spawn_player`) où il ne paie **que sa mise**. Les instructions `delegate_player` et `create_player_permission` reçoivent le `player_authority` comme `UncheckedAccount` (pubkey de référence pour les seeds) sans nécessiter sa signature. Les seeds des PDAs garantissent qu'on opère bien sur les comptes du bon joueur.
+
+```
+Flow joueur :
+1. spawn_player              → 1 popup wallet (signe + transfer bet)
+2. delegate_player           → 0 popup (serveur seul)
+3. create_player_permission  → 0 popup (serveur seul)
+```
 
 **Note** : `delegate_game` est splitté en 2 instructions (`delegate_game` + `delegate_meta`) car déléguer 5 accounts en une seule TX dépasse la stack limit du SBF VM.
 

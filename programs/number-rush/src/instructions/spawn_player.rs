@@ -3,12 +3,12 @@ use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
-pub fn handler(ctx: Context<SpawnPlayer>) -> Result<()> 
+pub fn handler(ctx: Context<SpawnPlayer>) -> Result<()>
 {
     require!(ctx.accounts.game_config.status == GameStatus::Waiting, GameError::InvalidGameStatus);
     require!((ctx.accounts.game_config.player_count as usize) < MAX_PLAYERS, GameError::MaxPlayersReached);
 
-    //todo init player state
+    // init player_state
     ctx.accounts.player_state.authority = ctx.accounts.player.key();
     ctx.accounts.player_state.game = ctx.accounts.game_config.key();
     ctx.accounts.player_state.alive = true;
@@ -21,8 +21,7 @@ pub fn handler(ctx: Context<SpawnPlayer>) -> Result<()>
     ctx.accounts.player_state.inactive_rounds = 0;
     ctx.accounts.player_state.bump = ctx.bumps.player_state;
 
-
-
+    // init player_guess
     ctx.accounts.player_guess.authority = ctx.accounts.player.key();
     ctx.accounts.player_guess.game = ctx.accounts.game_config.key();
     ctx.accounts.player_guess.guesses = [0; MAX_ATTEMPTS_PER_ROUND as usize];
@@ -30,10 +29,12 @@ pub fn handler(ctx: Context<SpawnPlayer>) -> Result<()>
     ctx.accounts.player_guess.last_guess_slot = 0;
     ctx.accounts.player_guess.bump = ctx.bumps.player_guess;
 
-    ctx.accounts.player.sub_lamports(ctx.accounts.game_config.bet_amount)?;
-    ctx.accounts.vault.add_lamports(ctx.accounts.game_config.bet_amount)?;
+    // Transfer bet SOL: player → vault PDA
+    let bet_amount = ctx.accounts.game_config.bet_amount;
+    ctx.accounts.player.sub_lamports(bet_amount)?;
+    ctx.accounts.vault.add_lamports(bet_amount)?;
 
-    ctx.accounts.vault.total_pot += ctx.accounts.game_config.bet_amount;
+    ctx.accounts.vault.total_pot += bet_amount;
     ctx.accounts.vault.deposits_count += 1;
 
     let idx = ctx.accounts.game_config.player_count as usize;
@@ -48,7 +49,7 @@ pub fn handler(ctx: Context<SpawnPlayer>) -> Result<()>
 pub struct SpawnPlayer<'info> {
     #[account(
         init,
-        payer = player,
+        payer = payer,
         space = 8 + PlayerState::INIT_SPACE,
         seeds = [PLAYER_SEED, game_config.key().as_ref(), player.key().as_ref()],
         bump,
@@ -57,7 +58,7 @@ pub struct SpawnPlayer<'info> {
 
     #[account(
         init,
-        payer = player,
+        payer = payer,
         space = 8 + PlayerGuess::INIT_SPACE,
         seeds = [GUESS_SEED, game_config.key().as_ref(), player.key().as_ref()],
         bump,
@@ -74,7 +75,13 @@ pub struct SpawnPlayer<'info> {
     )]
     pub vault: Account<'info, Vault>,
 
+    /// The player joining the game — pays only the bet, signs to authorize
     #[account(mut)]
     pub player: Signer<'info>,
+
+    /// Server wallet — pays for PDA rent (player_state + player_guess)
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
     pub system_program: Program<'info, System>,
 }
