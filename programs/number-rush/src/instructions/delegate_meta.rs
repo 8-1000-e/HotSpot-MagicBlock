@@ -1,16 +1,33 @@
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::anchor::delegate;
+use ephemeral_rollups_sdk::cpi::DelegateConfig;
+use crate::constants::*;
 use crate::state::*;
 
-pub fn handler(ctx: Context<DelegateMeta>) -> Result<()> {
-    // TODO: delegate leaderboard + round_reveal to TEE validator
-    //   use ctx.accounts.delegate_pda(..., DelegateConfig { validator: Some(TEE_VALIDATOR_DEVNET) })
+pub fn handler(ctx: Context<DelegateMeta>) -> Result<()>
+{
+    let validator = Some(TEE_VALIDATOR_DEVNET);
+    let game_key = ctx.accounts.game_config.key();
+
+    ctx.accounts.delegate_leaderboard(
+        &ctx.accounts.payer,
+        &[LEADERBOARD_SEED, game_key.as_ref()],
+        DelegateConfig { validator, ..Default::default() },
+    )?;
+
+    ctx.accounts.delegate_round_reveal(
+        &ctx.accounts.payer,
+        &[REVEAL_SEED, game_key.as_ref()],
+        DelegateConfig { validator, ..Default::default() },
+    )?;
+
     Ok(())
 }
 
 #[delegate]
 #[derive(Accounts)]
 pub struct DelegateMeta<'info> {
+    pub game_config: Account<'info, GameConfig>,
     #[account(mut, del)]
     pub leaderboard: Box<Account<'info, Leaderboard>>,
     #[account(mut, del)]

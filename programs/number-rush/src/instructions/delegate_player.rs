@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::anchor::delegate;
 use crate::state::*;
+use ephemeral_rollups_sdk::cpi::DelegateConfig;
+use crate::constants::*;
 
 pub fn handler(ctx: Context<DelegatePlayer>) -> Result<()> {
     // TODO: delegate player_state to TEE validator

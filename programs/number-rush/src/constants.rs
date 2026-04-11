@@ -41,3 +41,5 @@ pub const PLAYER_SEED: &[u8] = b"player";
 pub const GUESS_SEED: &[u8] = b"guess";
 pub const VAULT_SEED: &[u8] = b"vault";
 pub const SECRET_SEED: &[u8] = b"secret";
+pub const LEADERBOARD_SEED: &[u8] = b"leaderboard";
+pub const REVEAL_SEED: &[u8] = b"reveal";

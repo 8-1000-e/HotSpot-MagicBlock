@@ -84,7 +84,7 @@ pub struct InitGame<'info> {
         init,
         payer = authority,
         space = 8 + Leaderboard::INIT_SPACE,
-        seeds = [b"leaderboard", game_config.key().as_ref()],
+        seeds = [LEADERBOARD_SEED, game_config.key().as_ref()],
         bump,
     )]
     pub leaderboard: Account<'info, Leaderboard>,
@@ -93,7 +93,7 @@ pub struct InitGame<'info> {
         init,
         payer = authority,
         space = 8 + RoundReveal::INIT_SPACE,
-        seeds = [b"reveal", game_config.key().as_ref()],
+        seeds = [REVEAL_SEED, game_config.key().as_ref()],
         bump,
     )]
     pub round_reveal: Account<'info, RoundReveal>,
