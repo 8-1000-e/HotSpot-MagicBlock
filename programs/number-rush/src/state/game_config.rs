@@ -17,10 +17,6 @@ pub struct GameConfig {
     pub lobby_end: i64,
     /// Bet amount in lamports
     pub bet_amount: u64,
-    /// Platform fee in basis points (500 = 5%)
-    pub platform_fee_bps: u16,
-    pub round_found_count: u8,
-    pub eliminated_count: u8,
     /// Creator of the game
     pub authority: Pubkey,
     /// Player state PDAs registry (max 10)

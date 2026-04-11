@@ -8,7 +8,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("3ufsJSDXPz2kSWuZr9bSPM4azb9u8PanYgNDsrK9iohQ");
 
 #[ephemeral]
 #[program]

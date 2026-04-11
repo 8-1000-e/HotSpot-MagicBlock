@@ -32,4 +32,6 @@ pub enum GameError {
     AlreadyDistributed,
     #[msg("Unauthorized")]
     Unauthorized,
+    #[msg("Invalid bet amount (must be > 0)")]
+    InvalidBetAmount,
 }

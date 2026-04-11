@@ -33,5 +33,7 @@ pub struct StartGame<'info> {
         bump = vault.bump,
     )]
     pub vault: Account<'info, Vault>,
+
+    pub authority: Signer<'info>,
     // TODO: add VRF accounts (oracle_queue, vrf_program, slot_hashes)
 }
