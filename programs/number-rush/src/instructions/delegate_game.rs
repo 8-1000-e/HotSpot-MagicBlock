@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
-use ephemeral_rollups_sdk::delegate;
+use ephemeral_rollups_sdk::anchor::delegate;
 use crate::state::*;
 
 pub fn handler(ctx: Context<DelegateGame>) -> Result<()> {
-    // TODO: delegate game_config, vault, leaderboard, round_reveal, round_secret
+    // TODO: delegate game_config, vault, round_secret to TEE validator
     //   use ctx.accounts.delegate_pda(..., DelegateConfig { validator: Some(TEE_VALIDATOR_DEVNET) })
 
     // TODO: create permission for round_secret via Permission Program CPI
@@ -16,14 +16,10 @@ pub fn handler(ctx: Context<DelegateGame>) -> Result<()> {
 #[derive(Accounts)]
 pub struct DelegateGame<'info> {
     #[account(mut, del)]
-    pub game_config: Account<'info, GameConfig>,
+    pub game_config: Box<Account<'info, GameConfig>>,
     #[account(mut, del)]
-    pub vault: Account<'info, Vault>,
+    pub vault: Box<Account<'info, Vault>>,
     #[account(mut, del)]
-    pub leaderboard: Account<'info, Leaderboard>,
-    #[account(mut, del)]
-    pub round_reveal: Account<'info, RoundReveal>,
-    #[account(mut, del)]
-    pub round_secret: Account<'info, RoundSecret>,
+    pub round_secret: Box<Account<'info, RoundSecret>>,
     pub payer: Signer<'info>,
 }

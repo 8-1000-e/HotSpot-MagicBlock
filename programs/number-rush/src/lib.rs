@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use ephemeral_rollups_sdk::anchor::ephemeral;
 
 pub mod constants;
 pub mod errors;
@@ -9,6 +10,7 @@ use instructions::*;
 
 declare_id!("11111111111111111111111111111111");
 
+#[ephemeral]
 #[program]
 pub mod number_rush {
     use super::*;
@@ -23,6 +25,10 @@ pub mod number_rush {
 
     pub fn delegate_game(ctx: Context<DelegateGame>) -> Result<()> {
         instructions::delegate_game::handler(ctx)
+    }
+
+    pub fn delegate_meta(ctx: Context<DelegateMeta>) -> Result<()> {
+        instructions::delegate_meta::handler(ctx)
     }
 
     pub fn delegate_player(ctx: Context<DelegatePlayer>) -> Result<()> {
