@@ -18,7 +18,7 @@ pub struct GameConfig {
     pub status: GameStatus,
     pub active_players: u8,
     pub current_round: u8,
-    pub round_start_time: i64,
+    pub round_start_slot: u64,
     pub start_time: i64,
     pub lobby_end: i64,
     /// Bet amount in lamports

@@ -16,7 +16,7 @@ pub fn handler(ctx: Context<InitGame>, game_id: u64, bet_amount: u64) -> Result<
     ctx.accounts.game_config.status = GameStatus::Waiting;
     ctx.accounts.game_config.active_players = 0;
     ctx.accounts.game_config.current_round = 0;
-    ctx.accounts.game_config.round_start_time = 0;
+    ctx.accounts.game_config.round_start_slot = 0;
     ctx.accounts.game_config.start_time = now;
     ctx.accounts.game_config.lobby_end = now + LOBBY_DURATION;
     ctx.accounts.game_config.bet_amount = bet_amount;

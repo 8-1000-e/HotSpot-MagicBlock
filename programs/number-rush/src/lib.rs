@@ -47,6 +47,13 @@ pub mod number_rush {
         instructions::start_game::handler(ctx)
     }
 
+    pub fn vrf_callback_set_target(
+        ctx: Context<VrfCallbackSetTarget>,
+        randomness: [u8; 32],
+    ) -> Result<()> {
+        instructions::vrf_callback_set_target::handler(ctx, randomness)
+    }
+
     pub fn submit_guess(ctx: Context<SubmitGuess>, guess: u16) -> Result<()> {
         instructions::submit_guess::handler(ctx, guess)
     }
