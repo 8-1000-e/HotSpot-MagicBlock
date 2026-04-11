@@ -39,6 +39,10 @@ pub mod number_rush {
         instructions::create_player_permission::handler(ctx)
     }
 
+    pub fn create_round_secret_permission(ctx: Context<CreateRoundSecretPermission>) -> Result<()> {
+        instructions::create_round_secret_permission::handler(ctx)
+    }
+
     pub fn start_game(ctx: Context<StartGame>) -> Result<()> {
         instructions::start_game::handler(ctx)
     }

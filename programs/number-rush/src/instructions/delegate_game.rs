@@ -1,14 +1,31 @@
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::anchor::delegate;
 use crate::state::*;
+use ephemeral_rollups_sdk::cpi::DelegateConfig;
+use crate::constants::*;
 
-pub fn handler(ctx: Context<DelegateGame>) -> Result<()> {
-    // TODO: delegate game_config, vault, round_secret to TEE validator
-    //   use ctx.accounts.delegate_pda(..., DelegateConfig { validator: Some(TEE_VALIDATOR_DEVNET) })
+pub fn handler(ctx: Context<DelegateGame>) -> Result<()> 
+{
+    let validator = Some(TEE_VALIDATOR_DEVNET);
 
-    // TODO: create permission for round_secret via Permission Program CPI
-    //   members = [] (empty) → nobody can read target via RPC
-    //   the program still reads it as account in instruction context
+    ctx.accounts.delegate_game_config(
+        &ctx.accounts.payer,
+        &[GAME_SEED, &ctx.accounts.game_config.game_id.to_le_bytes()],
+        DelegateConfig { validator, ..Default::default() },
+    )?;
+
+    ctx.accounts.delegate_vault(
+        &ctx.accounts.payer,
+        &[VAULT_SEED, ctx.accounts.game_config.key().as_ref()],
+        DelegateConfig { validator, ..Default::default() },
+    )?;
+
+    ctx.accounts.delegate_round_secret(
+        &ctx.accounts.payer,
+        &[SECRET_SEED, ctx.accounts.game_config.key().as_ref()],
+        DelegateConfig { validator, ..Default::default() },
+    )?;
+
     Ok(())
 }
 
