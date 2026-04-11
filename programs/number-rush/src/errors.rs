@@ -34,4 +34,8 @@ pub enum GameError {
     Unauthorized,
     #[msg("Invalid bet amount (must be > 0)")]
     InvalidBetAmount,
+    #[msg("Game is not in the expected status")]
+    InvalidGameStatus,
+    #[msg("Max players reached for this game")]
+    MaxPlayersReached,
 }

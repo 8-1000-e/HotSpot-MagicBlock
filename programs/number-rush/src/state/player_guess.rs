@@ -13,6 +13,6 @@ pub struct PlayerGuess {
     pub game: Pubkey,
     pub guesses: [u16; MAX_ATTEMPTS_PER_ROUND as usize],
     pub count: u8,
-    pub last_guess_time: i64,
+    pub last_guess_slot: u64,
     pub bump: u8,
 }

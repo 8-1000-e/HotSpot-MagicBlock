@@ -35,6 +35,10 @@ pub mod number_rush {
         instructions::delegate_player::handler(ctx)
     }
 
+    pub fn create_player_permission(ctx: Context<CreatePlayerPermission>) -> Result<()> {
+        instructions::create_player_permission::handler(ctx)
+    }
+
     pub fn start_game(ctx: Context<StartGame>) -> Result<()> {
         instructions::start_game::handler(ctx)
     }

@@ -15,7 +15,7 @@ pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()> {
 
     // TODO: store guess in player_guess.guesses[attempt_idx]
     // TODO: update player_guess.count
-    // TODO: update last_guess_time
+    // TODO: update last_guess_slot
     // TODO: increment round_attempts + total_attempts
 
     // TODO: calculate proximity:

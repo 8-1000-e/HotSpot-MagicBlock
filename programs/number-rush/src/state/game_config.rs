@@ -4,12 +4,18 @@ use crate::constants::*;
 // PDA seeds: [GAME_SEED, game_id.to_le_bytes()]
 // Public on PER
 
+#[derive(AnchorSerialize, AnchorDeserialize, InitSpace, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GameStatus {
+    Waiting,
+    Playing,
+    Finished,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct GameConfig {
     pub game_id: u64,
-    /// 0 = Waiting, 1 = Playing, 2 = Finished
-    pub status: u8,
+    pub status: GameStatus,
     pub active_players: u8,
     pub current_round: u8,
     pub round_start_time: i64,

@@ -132,12 +132,16 @@ La commission de la plateforme est déduite du pot brut avant distribution.
          │  - Vault            │  ← SOL pot
          │  - Leaderboard      │  ← Public
          │  - RoundReveal      │  ← Public après fin de round
+         │  - RoundSecret      │  ← Privé (target VRF)
          │                     │
          │  Instructions :     │
          │  - init_game        │
          │  - spawn_player     │
          │  - delegate_game    │
+         │  - delegate_meta    │
          │  - delegate_player  │
+         │  - create_player_   │
+         │      permission     │
          │  - start_game       │
          │  - submit_guess     │  ← Via session key (no popup)
          │  - end_round        │
@@ -151,19 +155,47 @@ La commission de la plateforme est déduite du pot brut avant distribution.
 
 ### Architecture — Anchor pur + PER
 
-Le programme utilise Anchor 0.32.1 avec le SDK `ephemeral-rollups-sdk` pour la délégation vers le Private Ephemeral Rollup. Pas de BOLT ECS — le jeu n'a pas besoin du pattern Entity/Component/System car il n'y a pas d'entités en mouvement temps réel.
+Le programme utilise Anchor 0.32.1 + `ephemeral-rollups-sdk 0.8.0` (features `anchor` + `access-control`) pour la délégation vers le Private Ephemeral Rollup et la gestion des permissions. Pas de BOLT ECS — le jeu n'a pas besoin du pattern Entity/Component/System car il n'y a pas d'entités en mouvement temps réel.
 
-**Programme unique** : `number_rush` contient toute la logique (accounts + instructions + delegation).
+**Programme unique** : `number_rush` (`3ufsJSDXPz2kSWuZr9bSPM4azb9u8PanYgNDsrK9iohQ`) contient toute la logique (accounts + instructions + delegation + permissions).
+
+**Structure du code** :
+```
+programs/number-rush/src/
+├── lib.rs                          ← router + #[ephemeral] #[program]
+├── constants.rs                    ← seeds, limits, PLATFORM_FEE_BPS, TEE validators
+├── errors.rs                       ← GameError enum
+├── state/
+│   ├── game_config.rs              ← + enum GameStatus
+│   ├── round_secret.rs             ← target VRF (privé)
+│   ├── player_state.rs             ← + enum Direction
+│   ├── player_guess.rs             ← guesses du round en cours (privé)
+│   ├── vault.rs                    ← pot SOL
+│   ├── leaderboard.rs
+│   └── round_reveal.rs
+└── instructions/
+    ├── init_game.rs
+    ├── spawn_player.rs
+    ├── delegate_game.rs
+    ├── delegate_meta.rs
+    ├── delegate_player.rs
+    ├── create_player_permission.rs ← Permission Program CPI
+    ├── start_game.rs
+    ├── submit_guess.rs
+    ├── end_round.rs
+    └── end_game.rs
+```
 
 **Accounts** (state) :
 
 | Account | PDA Seeds | Rôle | Visibilité PER |
 |---|---|---|---|
-| `GameConfig` | `[game, game_id]` | Status, rounds, target, bet, joueurs registry | Public |
+| `GameConfig` | `[game, game_id]` | Status, rounds, bet, joueurs registry | Public |
+| `RoundSecret` | `[secret, game]` | Target VRF du round en cours | **Privé** (lisible uniquement par le programme) |
 | `PlayerState` | `[player, game, authority]` | Proximité, direction, attempts, alive | Public |
-| `PlayerGuess` | `[guess, game, authority]` | Historique des guesses du round en cours | **Privé** (Permission Program) |
+| `PlayerGuess` | `[guess, game, authority]` | Historique des guesses du round en cours | **Privé** (Permission Program → owner only) |
 | `Vault` | `[vault, game]` | Pot SOL, deposits, payout status | Public |
-| `Leaderboard` | `[leaderboard, game]` | Classement trié par attempts + tiebreak time | Public |
+| `Leaderboard` | `[leaderboard, game]` | Classement trié par attempts + tiebreak slots | Public |
 | `RoundReveal` | `[reveal, game]` | Targets révélés, résumé par joueur par round | Public après round |
 
 **Instructions** :
@@ -172,12 +204,16 @@ Le programme utilise Anchor 0.32.1 avec le SDK `ephemeral-rollups-sdk` pour la d
 |---|---|---|---|
 | `init_game` | Création du lobby | Wallet (creator) | L1 |
 | `spawn_player` | Join + deposit bet | Wallet (player) | L1 |
-| `delegate_game` | Après init | Wallet (creator) | L1 → PER |
-| `delegate_player` | Après spawn | Wallet (player) | L1 → PER |
+| `delegate_game` | Après init | Wallet (creator) | L1 → PER (game_config + vault + round_secret) |
+| `delegate_meta` | Après init | Wallet (creator) | L1 → PER (leaderboard + round_reveal) |
+| `delegate_player` | Après spawn | Wallet (player) | L1 → PER (player_state + player_guess) |
+| `create_player_permission` | Après delegate_player | Wallet (player) | PER |
 | `start_game` | Lobby terminé | Wallet ou crank | PER |
 | `submit_guess` | Chaque tentative | **Session key** (no popup) | PER |
 | `end_round` | Fin de round | Wallet ou crank | PER |
-| `end_game` | Fin partie + payout | Wallet ou crank | PER → L1 (commit) |
+| `end_game` | Fin partie + payout | Wallet ou crank | PER → L1 (commit + undelegate) |
+
+**Note** : `delegate_game` est splitté en 2 instructions (`delegate_game` + `delegate_meta`) car déléguer 5 accounts en une seule TX dépasse la stack limit du SBF VM.
 
 ### Private Ephemeral Rollup (PER) — comment ça marche
 
@@ -194,10 +230,25 @@ Le PER est un environnement d'exécution temporaire qui tourne dans un TEE (Trus
 | Frontend connect | `new Connection(ER_RPC)` | `verifyTeeRpcIntegrity()` → `getAuthToken()` → `?token=...` |
 
 **Permission Program** (`ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1`) :
-- Chaque `PlayerGuess` a un compte `permission` associé
-- `members = [player_authority]` → seul ce joueur peut lire
-- En fin de round : `members = None` → tout le monde peut lire (reveal)
+- Chaque `PlayerGuess` a un compte `permission` associé créé via `create_player_permission`
+- `members = [Member { flags: TX_LOGS|TX_BALANCES|TX_MESSAGE, pubkey: player }]` → seul ce joueur peut lire
+- En fin de round : `UpdatePermissionCpiBuilder` avec `members = None` → tout le monde peut lire (reveal)
 - Début du round suivant : permissions re-créées
+- Le `RoundSecret` n'est jamais lisible via RPC — seul le programme y accède dans les instructions
+
+**Pattern CPI utilisé** (suit l'exemple officiel `anchor-rock-paper-scissor`) :
+```rust
+use ephemeral_rollups_sdk::access_control::instructions::CreatePermissionCpiBuilder;
+use ephemeral_rollups_sdk::access_control::structs::{Member, MembersArgs, TX_LOGS_FLAG, ...};
+
+CreatePermissionCpiBuilder::new(&permission_program)
+    .permissioned_account(&player_guess.to_account_info())
+    .permission(&permission)
+    .payer(&player)
+    .system_program(&system_program)
+    .args(MembersArgs { members: Some(vec![Member { flags, pubkey }]) })
+    .invoke_signed(&[seeds_with_bump])?;
+```
 
 **TEE Validators** :
 - Devnet : `FnE6VJT5QNZdedZPnCoLsARgBwoE6DeJNjBs2H1gySXA`
@@ -222,7 +273,8 @@ const perConnection = new Connection(`https://devnet-tee.magicblock.app?token=${
 
 | Account | Visibilité PER | Mécanisme |
 |---|---|---|
-| PlayerGuess (chiffre soumis) | Privé pendant le round, révélé en fin de round | Permission Program (members) |
+| PlayerGuess (chiffre soumis) | Privé pendant le round, révélé en fin de round | Permission Program (members = [owner]) |
+| RoundSecret (target VRF) | Lisible uniquement par le programme | Pas de Permission, pas de RPC read possible |
 | PlayerState (chaud/froid, +/-) | Public en temps réel pour tous | Pas de permission |
 | GameConfig | Public en permanence | Pas de permission |
 | Leaderboard | Public en permanence | Pas de permission |
@@ -280,6 +332,6 @@ La collusion externe (deux joueurs qui se partagent leurs chiffres via un chat v
 | Exclusion passive | 3 rounds sans soumission = hors leaderboard |
 | Génération du nombre | VRF Magic Block, commité avant les soumissions |
 | Confidentialité | Private Ephemeral Rollup (PER) + Permission Program + TEE |
-| Framework on-chain | Anchor 0.32.1 + ephemeral-rollups-sdk |
+| Framework on-chain | Anchor 0.32.1 + ephemeral-rollups-sdk 0.8.0 (features anchor + access-control) |
 | Règlement final | Solana Devnet (commit + undelegate) |
 | Commission plateforme | % prélevé sur le pot brut avant distribution |
