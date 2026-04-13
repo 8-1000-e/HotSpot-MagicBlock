@@ -1,49 +1,114 @@
 use anchor_lang::prelude::*;
+use ephemeral_rollups_sdk::anchor::commit;
+use ephemeral_rollups_sdk::ephem::commit_and_undelegate_accounts;
 use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
-pub fn handler(ctx: Context<EndGame>) -> Result<()> {
-    // TODO: require status == Finished
-    // TODO: require vault.payout_status == 0
+pub fn handler(ctx: Context<EndGame>) -> Result<()>
+{
+    require!(ctx.accounts.game_config.status == GameStatus::Finished, GameError::InvalidGameStatus);
+    require!(ctx.accounts.vault.payout_status == 0, GameError::AlreadyDistributed);
+    require!(ctx.accounts.authority.key() == ctx.accounts.game_config.authority, GameError::Unauthorized);
 
-    // TODO: calculate fee + net_pot
-    // TODO: pay platform fee (vault → authority)
-    // TODO: pay 1st: 50%, 2nd: 25%, 3rd: 15%, 4th+: split 10%
-    //   use pay() helper for direct lamport manipulation
+    let total_pot = ctx.accounts.vault.total_pot;
+    let fee = total_pot * PLATFORM_FEE_BPS / 10000;
+    let net_pot = total_pot - fee;
+    let player_count = ctx.accounts.leaderboard.count as usize;
 
-    // TODO: set vault.payout_status = 1
-    // TODO: commit_and_undelegate_accounts() → settle back to L1
+    // Pay platform fee → creator
+    ctx.accounts.vault.sub_lamports(fee)?;
+    ctx.accounts.authority.add_lamports(fee)?;
+
+    // remaining_accounts = player wallets in leaderboard order
+    // Distribution depends on number of players
+    match player_count {
+        // 2 players: 1st gets 95%
+        2 => {
+            let first = net_pot * 9500 / 10000;
+            let second = net_pot - first;
+            ctx.accounts.vault.sub_lamports(first)?;
+            ctx.remaining_accounts[0].add_lamports(first)?;
+            ctx.accounts.vault.sub_lamports(second)?;
+            ctx.remaining_accounts[1].add_lamports(second)?;
+        }
+        // 3 players: 1st 60%, 2nd 35%, 3rd rest
+        3 => {
+            let first = net_pot * 6000 / 10000;
+            let second = net_pot * 3500 / 10000;
+            let third = net_pot - first - second;
+            ctx.accounts.vault.sub_lamports(first)?;
+            ctx.remaining_accounts[0].add_lamports(first)?;
+            ctx.accounts.vault.sub_lamports(second)?;
+            ctx.remaining_accounts[1].add_lamports(second)?;
+            ctx.accounts.vault.sub_lamports(third)?;
+            ctx.remaining_accounts[2].add_lamports(third)?;
+        }
+        // 4+ players: 1st 55%, 2nd 25%, 3rd 15%, rest split 5%
+        _ => {
+            let first = net_pot * 5500 / 10000;
+            let second = net_pot * 2500 / 10000;
+            let third = net_pot * 1500 / 10000;
+            ctx.accounts.vault.sub_lamports(first)?;
+            ctx.remaining_accounts[0].add_lamports(first)?;
+            ctx.accounts.vault.sub_lamports(second)?;
+            ctx.remaining_accounts[1].add_lamports(second)?;
+            ctx.accounts.vault.sub_lamports(third)?;
+            ctx.remaining_accounts[2].add_lamports(third)?;
+
+            if player_count > 3 {
+                let rest = net_pot - first - second - third;
+                let rest_count = (player_count - 3) as u64;
+                let per_player = rest / rest_count;
+                for i in 3..player_count {
+                    ctx.accounts.vault.sub_lamports(per_player)?;
+                    ctx.remaining_accounts[i].add_lamports(per_player)?;
+                }
+            }
+        }
+    }
+
+    ctx.accounts.vault.payout_status = 1;
+
+    // Commit and undelegate all game accounts → settle back to L1
+    ctx.accounts.game_config.exit(&crate::ID)?;
+
+    commit_and_undelegate_accounts(
+        &ctx.accounts.authority,
+        vec![
+            &ctx.accounts.game_config.to_account_info(),
+            &ctx.accounts.leaderboard.to_account_info(),
+            &ctx.accounts.vault.to_account_info(),
+        ],
+        &ctx.accounts.magic_context,
+        &ctx.accounts.magic_program,
+    )?;
+
     Ok(())
 }
 
-pub fn pay<'a>(from: &AccountInfo<'a>, to: &AccountInfo<'a>, amount: u64) -> Result<()> {
-    let from_lamports = from.lamports();
-    let payable = amount.min(from_lamports);
-    **from.try_borrow_mut_lamports()? = from_lamports.saturating_sub(payable);
-    **to.try_borrow_mut_lamports()? = to.lamports().saturating_add(payable);
-    Ok(())
-}
-
+#[commit]
 #[derive(Accounts)]
 pub struct EndGame<'info> {
     #[account(mut)]
-    pub game_config: Account<'info, GameConfig>,
+    pub game_config: Box<Account<'info, GameConfig>>,
 
     #[account(
         mut,
-        seeds = [b"leaderboard", game_config.key().as_ref()],
+        seeds = [LEADERBOARD_SEED, game_config.key().as_ref()],
         bump = leaderboard.bump,
     )]
-    pub leaderboard: Account<'info, Leaderboard>,
+    pub leaderboard: Box<Account<'info, Leaderboard>>,
 
     #[account(
         mut,
         seeds = [VAULT_SEED, game_config.key().as_ref()],
         bump = vault.bump,
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: Box<Account<'info, Vault>>,
 
+    /// Creator of the game — receives platform fee, must match game_config.authority
+    #[account(mut)]
     pub authority: Signer<'info>,
-    // TODO: remaining_accounts = player wallets in leaderboard order for payout
+    // remaining_accounts: player wallets in leaderboard order
 }
