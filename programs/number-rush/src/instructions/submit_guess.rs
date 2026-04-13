@@ -3,32 +3,69 @@ use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
-pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()> {
-    // TODO: require status == Playing
-    // TODO: require player alive
-    // TODO: require !found_this_round
-    // TODO: require round_attempts < MAX_ATTEMPTS_PER_ROUND
-    // TODO: require guess <= NUMBER_RANGE
+pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()> 
+{
+    
+    require!(ctx.accounts.game_config.status == GameStatus::Playing, GameError::InvalidGameStatus);
+    require!(ctx.accounts.player_state.alive, GameError::PlayerEliminated);
+    require!(!ctx.accounts.player_state.found_this_round, GameError::AlreadyFound);
+    require!(ctx.accounts.player_guess.count < MAX_ATTEMPTS_PER_ROUND, GameError::MaxAttemptsReached);
+    require!(guess <= NUMBER_RANGE || guess == NO_GUESS, GameError::GuessOutOfRange);
+    if guess == NO_GUESS
+    {
+        ctx.accounts.player_state.inactive_rounds += 1;
+        if ctx.accounts.player_state.inactive_rounds >= MAX_INACTIVE_ROUNDS
+        {
+            ctx.accounts.player_state.alive = false;
+            ctx.accounts.game_config.eliminated_count += 1;
+        }
+        return Ok(());
+    }
 
-    // TODO: read target from round_secret.target_number
-    //   (program can read it even though RPC permission blocks players)
+    // Reset inactive streak on real guess
+    ctx.accounts.player_state.inactive_rounds = 0;
 
-    // TODO: store guess in player_guess.guesses[attempt_idx]
-    // TODO: update player_guess.count
-    // TODO: update last_guess_slot
-    // TODO: increment round_attempts + total_attempts
+    let target = ctx.accounts.round_secret.target_number;
+    let now_slot = Clock::get()?.slot;
 
-    // TODO: calculate proximity:
-    //   diff = abs(guess - target)
-    //   >400 = Glacial, 200-400 = Froid, 100-200 = Tiede
-    //   50-100 = Chaud, 1-50 = Bouillant, 0 = Trouve
+    let attempt_idx = ctx.accounts.player_guess.count as usize;
+    ctx.accounts.player_guess.guesses[attempt_idx] = guess;
+    ctx.accounts.player_guess.count += 1;
+    ctx.accounts.player_guess.last_guess_slot = now_slot;
+    ctx.accounts.player_state.round_attempts += 1;
+    ctx.accounts.player_state.total_attempts += 1;
 
-    // TODO: calculate direction (1 = higher, 2 = lower)
 
-    // TODO: if found (diff == 0):
-    //   found_this_round = true
-    //   total_time_ms += (now - round_start_time) * 1000
-    //   game_config.round_found_count++
+    let diff = if guess > target { guess - target } else { target - guess };
+    ctx.accounts.player_state.proximity = match diff 
+    {
+        0 => PROXIMITY_TROUVE,
+        1..=50 => PROXIMITY_BOUILLANT,
+        51..=100 => PROXIMITY_CHAUD,
+        101..=200 => PROXIMITY_TIEDE,
+        201..=400 => PROXIMITY_FROID,
+        _ => PROXIMITY_GLACIAL,
+    };
+
+    ctx.accounts.player_state.direction = if diff == 0 
+    {
+        Direction::None
+    } 
+    else if guess < target 
+    {
+        Direction::Higher
+    } 
+    else 
+    {
+        Direction::Lower
+    };
+
+    if diff == 0 {
+        ctx.accounts.player_state.found_this_round = true;
+        ctx.accounts.player_state.total_time_slot += now_slot - ctx.accounts.game_config.round_start_slot;
+        ctx.accounts.game_config.round_found_count += 1;
+    }
+
     Ok(())
 }
 

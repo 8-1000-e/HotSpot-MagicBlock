@@ -5,8 +5,10 @@ pub const MAX_ROUNDS: u8 = 5;
 pub const MAX_ATTEMPTS_PER_ROUND: u8 = 15;
 pub const ATTEMPT_TIMER_SECS: i64 = 5;
 pub const NUMBER_RANGE: u16 = 1000;
+pub const NO_GUESS: u16 = u16::MAX;
 pub const LOBBY_DURATION: i64 = 60;
 pub const INACTIVE_ROUNDS_LIMIT: u8 = 3;
+pub const MAX_INACTIVE_ROUNDS: u8 = 3;
 
 /// Platform fee in basis points (500 = 5%)
 pub const PLATFORM_FEE_BPS: u64 = 500;

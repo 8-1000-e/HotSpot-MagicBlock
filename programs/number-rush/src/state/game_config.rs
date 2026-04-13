@@ -28,5 +28,8 @@ pub struct GameConfig {
     /// Player state PDAs registry (max 10)
     pub players: [[u8; 32]; MAX_PLAYERS],
     pub player_count: u8,
+    /// Number of players who found the number this round
+    pub round_found_count: u8,
+    pub eliminated_count: u8,
     pub bump: u8,
 }
