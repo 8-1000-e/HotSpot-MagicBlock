@@ -25,6 +25,7 @@ import {
   getRoundSecretPda,
   getPlayerStatePda,
   getPlayerGuessPda,
+  getPermissionPda,
 } from "../lib/program";
 import {
   PROGRAM_ID, TEE_RPC_BASE, TEE_WS_BASE,
@@ -51,7 +52,9 @@ async function buildSignSend(
   tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
   tx.feePayer = wallet.publicKey;
   const signed = await wallet.signTransaction(tx);
-  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+  // Debug: skipPreflight=false surfaces on-chain errors instead of hiding them
+  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: false });
+  await conn.confirmTransaction(sig, "confirmed");
   return sig;
 }
 
@@ -279,54 +282,83 @@ export const Game: FC = () => {
     setLoading("");
   }, [getL1Program, wallet.publicKey, gameConfigPda, log, getDelegationPdas, signAndSendAll]);
 
-  // ─── START GAME (ER) ───
-  // ─── START GAME + VRF (L1) — runs BEFORE delegation ───
-  const handleStartGame = useCallback(async () => {
-    const program = getL1Program();
-    if (!program || !wallet.publicKey || !gameConfigPda) return;
-    setLoading("Starting game on L1...");
+  // ─── CREATE PLAYER PERMISSION (ER) — restricts PlayerGuess reads to the player ───
+  const handleCreatePlayerPermission = useCallback(async () => {
+    const program = getErProgram();
+    if (!program || !wallet.publicKey || !gameConfigPda || !erConnection) return;
+    setLoading("Creating player permission...");
     try {
-      // 1. start_game on L1 — set status Playing
-      await program.methods.startGame()
-        .accountsPartial({ gameConfig: gameConfigPda, vault: getVaultPda(gameConfigPda), payer: wallet.publicKey })
-        .rpc({ skipPreflight: true });
+      const playerGuess = getPlayerGuessPda(gameConfigPda, wallet.publicKey);
+      await buildSignSend(program, program.methods.createPlayerPermission(), {
+        gameConfig: gameConfigPda,
+        playerAuthority: wallet.publicKey,
+        playerGuess,
+        permission: getPermissionPda(playerGuess),
+        payer: wallet.publicKey,
+      }, erConnection, wallet);
+      log("PlayerGuess is now private (reads restricted to you).");
+    } catch (e: any) { log(`Permission error: ${e.message}`); }
+    setLoading("");
+  }, [getErProgram, wallet, gameConfigPda, erConnection, log]);
+
+  // ─── CREATE ROUND SECRET PERMISSION (ER) — blocks all RPC reads of target_number ───
+  const handleCreateRoundSecretPermission = useCallback(async () => {
+    const program = getErProgram();
+    if (!program || !wallet.publicKey || !gameConfigPda || !erConnection) return;
+    setLoading("Creating round secret permission...");
+    try {
+      const roundSecret = getRoundSecretPda(gameConfigPda);
+      await buildSignSend(program, program.methods.createRoundSecretPermission(), {
+        gameConfig: gameConfigPda,
+        roundSecret,
+        permission: getPermissionPda(roundSecret),
+        payer: wallet.publicKey,
+      }, erConnection, wallet);
+      log("RoundSecret is now private (target_number hidden from RPC).");
+    } catch (e: any) { log(`Permission error: ${e.message}`); }
+    setLoading("");
+  }, [getErProgram, wallet, gameConfigPda, erConnection, log]);
+
+  // ─── START GAME + VRF (PER) — runs AFTER delegation + auth + permissions ───
+  // Target generated on the PER only, protected by RoundSecret permission. Never leaks to L1.
+  const handleStartGame = useCallback(async () => {
+    const program = getErProgram();
+    if (!program || !wallet.publicKey || !gameConfigPda || !erConnection) return;
+    setLoading("Starting game on PER...");
+    try {
+      // 1. start_game on PER — set status Playing (requires delegated game_config + vault)
+      await buildSignSend(program, program.methods.startGame(), {
+        gameConfig: gameConfigPda,
+        vault: getVaultPda(gameConfigPda),
+        payer: wallet.publicKey,
+      }, erConnection, wallet);
       log("Status set to Playing!");
 
-      // 2. request_target on L1 — VRF
-      setLoading("Requesting VRF target on L1...");
+      // 2. request_target on PER — VRF writes target_number inside the TEE
+      setLoading("Requesting VRF target on PER...");
       const [programIdentity] = PublicKey.findProgramAddressSync([Buffer.from("identity")], PROGRAM_ID);
-      await program.methods.requestTarget()
-        .accountsPartial({
-          gameConfig: gameConfigPda,
-          roundSecret: getRoundSecretPda(gameConfigPda),
-          payer: wallet.publicKey,
-          oracleQueue: VRF_ORACLE_QUEUE,
-          programIdentity,
-          vrfProgram: VRF_PROGRAM_ID,
-          slotHashes: SLOT_HASHES,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ skipPreflight: true });
+      await buildSignSend(program, program.methods.requestTarget(), {
+        gameConfig: gameConfigPda,
+        roundSecret: getRoundSecretPda(gameConfigPda),
+        payer: wallet.publicKey,
+        oracleQueue: VRF_ORACLE_QUEUE,
+        programIdentity,
+        vrfProgram: VRF_PROGRAM_ID,
+        slotHashes: SLOT_HASHES,
+        systemProgram: SystemProgram.programId,
+      }, erConnection, wallet);
       log("VRF requested! Waiting for callback...");
 
-      // 3. Wait for VRF callback (~5s like roll-dice example)
+      // 3. Poll for VRF callback — don't try to read target_number (permission blocks it).
+      //    Wait a few seconds for the oracle to respond inside the TEE.
       setLoading("Waiting for VRF callback...");
       await new Promise((r) => setTimeout(r, 5000));
 
-      // 4. Verify target was set
-      const secret = await program.account.roundSecret.fetch(getRoundSecretPda(gameConfigPda));
-      if (secret.targetNumber !== 0) {
-        log(`VRF callback received! Target set.`);
-      } else {
-        log("VRF callback pending — target still 0, waiting more...");
-        await new Promise((r) => setTimeout(r, 5000));
-      }
-
-      log("Game started! Now delegate to TEE.");
-      setGameState(await program.account.gameConfig.fetch(gameConfigPda));
+      log("Game started! Target is sealed in the TEE.");
+      await refreshGameState();
     } catch (e: any) { log(`Error: ${e.message}`); }
     setLoading("");
-  }, [getL1Program, wallet, gameConfigPda, log]);
+  }, [getErProgram, wallet, gameConfigPda, erConnection, log, refreshGameState]);
 
   // ─── SUBMIT GUESS (ER) — all accounts explicit ───
   const handleSubmitGuess = useCallback(async () => {
@@ -428,6 +460,58 @@ export const Game: FC = () => {
     } catch (e: any) { log(`Error: ${e.message}`); }
     setLoading("");
   }, [getErProgram, wallet, gameConfigPda, gameState, log, refreshGameState, refreshPlayerState]);
+
+  // ─── DEBUG: inspect VRF queue on PER vs L1 ───
+  const handleDebugVrfQueue = useCallback(async () => {
+    if (!wallet.publicKey) return;
+    setLoading("Inspecting VRF queue...");
+    try {
+      const l1 = connection;
+      const er = erConnection;
+      const check = async (label: string, conn: Connection, queue: PublicKey) => {
+        const info = await conn.getAccountInfo(queue).catch((e: any) => ({ __err: e.message }));
+        if (!info) { log(`[${label}] queue ${queue.toBase58().slice(0,8)}…: NULL (account does not exist)`); return; }
+        if ((info as any).__err) { log(`[${label}] queue ${queue.toBase58().slice(0,8)}…: ERR ${(info as any).__err}`); return; }
+        log(`[${label}] queue ${queue.toBase58().slice(0,8)}…: owner=${(info as any).owner.toBase58().slice(0,8)}… dataLen=${(info as any).data.length}`);
+      };
+      // Both possible queues on both chains
+      await check("L1 ", l1, new PublicKey("Cuj97ggrhhidhbu39TijNVqE74xvKJ69gDervRUXAxGh"));
+      await check("L1 ", l1, VRF_ORACLE_QUEUE);
+      if (er) {
+        await check("PER", er, new PublicKey("Cuj97ggrhhidhbu39TijNVqE74xvKJ69gDervRUXAxGh"));
+        await check("PER", er, VRF_ORACLE_QUEUE);
+      } else {
+        log("[PER] no ER connection — auth TEE first");
+      }
+
+      // Fetch validator identities of both MagicBlock endpoints
+      const idTee = await (er || l1).getSlotLeaders(0, 1).then((x) => x[0]?.toBase58()).catch(() => "err");
+      log(`[PER] current slot leader (tee): ${idTee}`);
+      try {
+        const standardEr = new Connection("https://devnet-as.magicblock.app", "confirmed");
+        const idStd = await standardEr.getSlotLeaders(0, 1).then((x) => x[0]?.toBase58());
+        log(`[ER standard] current slot leader: ${idStd}`);
+      } catch (e: any) { log(`standard ER err: ${e.message}`); }
+
+      // delegation_metadata PDA contains the validator/rent_payer info
+      const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(VRF_ORACLE_QUEUE);
+      log(`[L1] delegation_metadata for ${VRF_ORACLE_QUEUE.toBase58().slice(0,8)}…: ${delegationMetadata.toBase58()}`);
+      const metaInfo = await l1.getAccountInfo(delegationMetadata);
+      if (!metaInfo) { log(`[L1] delegation_metadata NOT FOUND`); }
+      else {
+        const bytes = Buffer.from(metaInfo.data);
+        log(`[L1] delegation_metadata dataLen=${bytes.length}`);
+        // Aligned 32-byte pubkeys only (103 bytes = 3 pubkeys + 7 bytes tail)
+        for (const off of [0, 32, 64]) {
+          if (bytes.length >= off + 32) {
+            const pk = new PublicKey(bytes.subarray(off, off + 32)).toBase58();
+            log(`  +${off} ${pk}`);
+          }
+        }
+      }
+    } catch (e: any) { log(`Debug error: ${e.message}`); }
+    setLoading("");
+  }, [wallet.publicKey, connection, erConnection, log]);
 
   // ─── END GAME (ER) ───
   const handleEndGame = useCallback(async () => {
@@ -603,31 +687,43 @@ export const Game: FC = () => {
             <div className="space-y-2">
               <p className="text-green-400 text-sm text-center">{gameState.playerCount} players ready!</p>
 
-              {/* Step 1: Start Game + VRF on L1 (creator only) */}
-              <button onClick={handleStartGame} disabled={!!loading || gameState.status?.playing !== undefined}
-                className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                {gameState.status?.playing !== undefined ? "Game Started ✓" : "1. Start Game + VRF (L1)"}
-              </button>
-
-              {/* Step 2: Delegate to TEE */}
+              {/* Step 1: Delegate to PER */}
               <div className="flex gap-2">
-                <button onClick={handleDelegateCreator} disabled={!!loading || gameState.status?.waiting !== undefined}
+                <button onClick={handleDelegateCreator} disabled={!!loading}
                   className="flex-1 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                  2. Delegate (Creator)
+                  1. Delegate (Creator)
                 </button>
-                <button onClick={handleDelegatePlayer} disabled={!!loading || gameState.status?.waiting !== undefined}
+                <button onClick={handleDelegatePlayer} disabled={!!loading}
                   className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                  2. Delegate (Player)
+                  1. Delegate (Player)
                 </button>
               </div>
 
-              {/* Step 3: Auth TEE */}
+              {/* Step 2: Auth TEE */}
               <button onClick={handleAuthTee} disabled={!!loading || !!erConnection}
                 className={`w-full py-2 rounded font-medium text-sm ${erConnection ? "bg-green-800 text-green-300" : "bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700"}`}>
-                {erConnection ? "3. TEE Authenticated ✓" : "3. Auth TEE"}
+                {erConnection ? "2. TEE Authenticated ✓" : "2. Auth TEE"}
               </button>
 
-              {/* Step 4: Enter game (switch to playing phase) */}
+              {/* Step 3: Permissions (privacy) — each TX signed alone, see permission bundle bug */}
+              <div className="flex gap-2">
+                <button onClick={handleCreatePlayerPermission} disabled={!!loading || !erConnection}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
+                  3a. Privacy (Guess)
+                </button>
+                <button onClick={handleCreateRoundSecretPermission} disabled={!!loading || !erConnection}
+                  className="flex-1 bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
+                  3b. Privacy (Secret, creator)
+                </button>
+              </div>
+
+              {/* Step 4: Start Game + VRF on PER (creator only) — must run AFTER permissions */}
+              <button onClick={handleStartGame} disabled={!!loading || !erConnection || gameState.status?.playing !== undefined}
+                className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
+                {gameState.status?.playing !== undefined ? "Game Started ✓" : "4. Start Game + VRF (PER, creator)"}
+              </button>
+
+              {/* Step 5: Enter game (switch to playing phase) */}
               <button onClick={async () => {
                 if (!erConnection || !gameConfigPda) return;
                 const program = getErProgram();
@@ -645,10 +741,15 @@ export const Game: FC = () => {
                 } catch (e: any) { log(`Error: ${e.message}`); }
               }} disabled={!erConnection}
                 className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                4. Enter Game
+                5. Enter Game
               </button>
 
-              <p className="text-gray-500 text-xs text-center">Creator: 1→2→3→4 | Player: 2→3→4</p>
+              <p className="text-gray-500 text-xs text-center">Creator: 1→2→3a→3b→4→5 | Player: 1→2→3a→5</p>
+
+              <button onClick={handleDebugVrfQueue} disabled={!!loading}
+                className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 py-1 rounded text-xs text-gray-300">
+                Debug VRF queue (L1 + PER)
+              </button>
               <button onClick={async () => {
                 const program = getErProgram();
                 if (!program || !gameConfigPda) return;

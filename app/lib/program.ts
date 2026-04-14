@@ -1,5 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
+import { permissionPdaFromAccount } from "@magicblock-labs/ephemeral-rollups-sdk";
 import type { NumberRush } from "./number_rush_types";
 import {
   PROGRAM_ID,
@@ -71,6 +72,10 @@ export function getPlayerGuessPda(gameConfig: PublicKey, player: PublicKey): Pub
     PROGRAM_ID
   );
   return pda;
+}
+
+export function getPermissionPda(account: PublicKey): PublicKey {
+  return permissionPdaFromAccount(account);
 }
 
 // ─── Program instance ───

@@ -53,7 +53,7 @@ pub struct RequestTarget<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    /// CHECK: The oracle queue
-    #[account(mut, address = ephemeral_vrf_sdk::consts::DEFAULT_QUEUE)]
+    /// CHECK: The ephemeral VRF oracle queue (PER/TEE queue, not the L1 one)
+    #[account(mut, address = ephemeral_vrf_sdk::consts::DEFAULT_EPHEMERAL_QUEUE)]
     pub oracle_queue: AccountInfo<'info>,
 }
