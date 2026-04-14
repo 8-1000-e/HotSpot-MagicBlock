@@ -1,8 +1,13 @@
 use anchor_lang::prelude::*;
+use session_keys::{session_auth_or, Session, SessionError, SessionToken};
 use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
+#[session_auth_or(
+    ctx.accounts.authority.key() == ctx.accounts.game_config.authority,
+    GameError::Unauthorized
+)]
 pub fn handler(ctx: Context<EndRound>) -> Result<()>
 {
     require!(ctx.accounts.game_config.status == GameStatus::Playing, GameError::InvalidGameStatus);
@@ -63,8 +68,20 @@ pub fn handler(ctx: Context<EndRound>) -> Result<()>
     Ok(())
 }
 
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 pub struct EndRound<'info> {
+    /// CHECK: must match game_config.authority
+    pub authority: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[session(
+        signer = payer,
+        authority = authority.key()
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut)]
     pub game_config: Box<Account<'info, GameConfig>>,
 
@@ -88,8 +105,5 @@ pub struct EndRound<'info> {
         bump = round_secret.bump,
     )]
     pub round_secret: Box<Account<'info, RoundSecret>>,
-
-    #[account(mut)]
-    pub payer: Signer<'info>,
     // remaining_accounts: PlayerState PDAs for all players
 }

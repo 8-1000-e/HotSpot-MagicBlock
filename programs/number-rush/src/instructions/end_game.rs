@@ -1,22 +1,26 @@
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::anchor::commit;
 use ephemeral_rollups_sdk::ephem::commit_and_undelegate_accounts;
+use session_keys::{session_auth_or, Session, SessionError, SessionToken};
 use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
+#[session_auth_or(
+    ctx.accounts.authority.key() == ctx.accounts.game_config.authority,
+    GameError::Unauthorized
+)]
 pub fn handler(ctx: Context<EndGame>) -> Result<()>
 {
     require!(ctx.accounts.game_config.status == GameStatus::Finished, GameError::InvalidGameStatus);
     require!(ctx.accounts.vault.payout_status == 0, GameError::AlreadyDistributed);
-    require!(ctx.accounts.authority.key() == ctx.accounts.game_config.authority, GameError::Unauthorized);
 
     let total_pot = ctx.accounts.vault.total_pot;
     let fee = total_pot * PLATFORM_FEE_BPS / 10000;
     let net_pot = total_pot - fee;
     let player_count = ctx.accounts.leaderboard.count as usize;
 
-    // Pay platform fee → creator
+    // Pay platform fee → creator (authority is just an AccountInfo now, but lamports still credit)
     ctx.accounts.vault.sub_lamports(fee)?;
     ctx.accounts.authority.add_lamports(fee)?;
 
@@ -74,7 +78,7 @@ pub fn handler(ctx: Context<EndGame>) -> Result<()>
     ctx.accounts.game_config.exit(&crate::ID)?;
 
     commit_and_undelegate_accounts(
-        &ctx.accounts.authority,
+        &ctx.accounts.payer,
         vec![
             &ctx.accounts.game_config.to_account_info(),
             &ctx.accounts.leaderboard.to_account_info(),
@@ -88,8 +92,22 @@ pub fn handler(ctx: Context<EndGame>) -> Result<()>
 }
 
 #[commit]
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 pub struct EndGame<'info> {
+    /// CHECK: must match game_config.authority (creator)
+    #[account(mut)]
+    pub authority: AccountInfo<'info>,
+
+    /// Fee payer on PER (sessionKp or wallet)
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[session(
+        signer = payer,
+        authority = authority.key()
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut)]
     pub game_config: Box<Account<'info, GameConfig>>,
 
@@ -106,9 +124,5 @@ pub struct EndGame<'info> {
         bump = vault.bump,
     )]
     pub vault: Box<Account<'info, Vault>>,
-
-    /// Creator of the game — receives platform fee, must match game_config.authority
-    #[account(mut)]
-    pub authority: Signer<'info>,
     // remaining_accounts: player wallets in leaderboard order
 }

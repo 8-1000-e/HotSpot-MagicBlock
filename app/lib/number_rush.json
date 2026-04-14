@@ -1,5 +1,5 @@
 {
-  "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt",
+  "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa",
   "metadata": {
     "name": "number_rush",
     "version": "0.1.0",
@@ -55,23 +55,29 @@
           "writable": true
         },
         {
+          "name": "group",
+          "writable": true
+        },
+        {
           "name": "payer",
-          "docs": [
-            "Server wallet — pays for the permission account rent"
-          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "permission_program",
-          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+          "address": "BTWAqWNBmF2TboMh3fxMJfgR16xGHYD7Kgr2dPwbRPBi"
         },
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "id",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "create_round_secret_permission",
@@ -116,20 +122,29 @@
           "writable": true
         },
         {
+          "name": "group",
+          "writable": true
+        },
+        {
           "name": "payer",
           "writable": true,
           "signer": true
         },
         {
           "name": "permission_program",
-          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+          "address": "BTWAqWNBmF2TboMh3fxMJfgR16xGHYD7Kgr2dPwbRPBi"
         },
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "id",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "delegate_game",
@@ -168,38 +183,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -303,38 +318,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -438,38 +453,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -555,7 +570,7 @@
         },
         {
           "name": "owner_program",
-          "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+          "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
         },
         {
           "name": "delegation_program",
@@ -608,38 +623,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -743,38 +758,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -860,7 +875,7 @@
         },
         {
           "name": "owner_program",
-          "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+          "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
         },
         {
           "name": "delegation_program",
@@ -916,38 +931,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -1051,38 +1066,38 @@
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -1172,7 +1187,7 @@
         },
         {
           "name": "owner_program",
-          "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+          "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
         },
         {
           "name": "delegation_program",
@@ -1198,6 +1213,22 @@
         252
       ],
       "accounts": [
+        {
+          "name": "authority",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Fee payer on PER (sessionKp or wallet)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_token",
+          "optional": true
+        },
         {
           "name": "game_config",
           "writable": true
@@ -1253,14 +1284,6 @@
           }
         },
         {
-          "name": "authority",
-          "docs": [
-            "Creator of the game — receives platform fee, must match game_config.authority"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
           "name": "magic_program",
           "address": "Magic11111111111111111111111111111111111111"
         },
@@ -1285,6 +1308,18 @@
         63
       ],
       "accounts": [
+        {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_token",
+          "optional": true
+        },
         {
           "name": "game_config",
           "writable": true
@@ -1362,11 +1397,6 @@
               }
             ]
           }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
         }
       ],
       "args": []
@@ -1573,6 +1603,18 @@
       ],
       "accounts": [
         {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_token",
+          "optional": true
+        },
+        {
           "name": "game_config",
           "writable": true
         },
@@ -1598,11 +1640,6 @@
               }
             ]
           }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
         },
         {
           "name": "oracle_queue",
@@ -1773,6 +1810,21 @@
       ],
       "accounts": [
         {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Fee payer on PER — either the creator's wallet or their session keypair"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_token",
+          "optional": true
+        },
+        {
           "name": "game_config",
           "writable": true
         },
@@ -1796,11 +1848,6 @@
               }
             ]
           }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
         }
       ],
       "args": []
@@ -1818,6 +1865,25 @@
         3
       ],
       "accounts": [
+        {
+          "name": "authority",
+          "relations": [
+            "player_state",
+            "player_guess"
+          ]
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Session signer (paid fees on PER; wallet or ephemeral session keypair)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_token",
+          "optional": true
+        },
         {
           "name": "player_state",
           "writable": true
@@ -1854,14 +1920,6 @@
               }
             ]
           }
-        },
-        {
-          "name": "authority",
-          "signer": true,
-          "relations": [
-            "player_state",
-            "player_guess"
-          ]
         }
       ],
       "args": [
@@ -1993,6 +2051,19 @@
       ]
     },
     {
+      "name": "SessionToken",
+      "discriminator": [
+        233,
+        4,
+        115,
+        14,
+        46,
+        21,
+        1,
+        15
+      ]
+    },
+    {
       "name": "Vault",
       "discriminator": [
         211,
@@ -2096,6 +2167,11 @@
       "code": 6017,
       "name": "MaxPlayersReached",
       "msg": "Max players reached for this game"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidAuthority",
+      "msg": "Invalid authority — session token does not match player state"
     }
   ],
   "types": [
@@ -2474,6 +2550,30 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionToken",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "target_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_signer",
+            "type": "pubkey"
+          },
+          {
+            "name": "valid_until",
+            "type": "i64"
           }
         ]
       }

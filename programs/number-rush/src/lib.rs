@@ -8,7 +8,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt");
+declare_id!("r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa");
 
 #[ephemeral]
 #[program]
@@ -35,12 +35,12 @@ pub mod number_rush {
         instructions::delegate_player::handler(ctx)
     }
 
-    pub fn create_player_permission(ctx: Context<CreatePlayerPermission>) -> Result<()> {
-        instructions::create_player_permission::handler(ctx)
+    pub fn create_player_permission(ctx: Context<CreatePlayerPermission>, id: Pubkey) -> Result<()> {
+        instructions::create_player_permission::handler(ctx, id)
     }
 
-    pub fn create_round_secret_permission(ctx: Context<CreateRoundSecretPermission>) -> Result<()> {
-        instructions::create_round_secret_permission::handler(ctx)
+    pub fn create_round_secret_permission(ctx: Context<CreateRoundSecretPermission>, id: Pubkey) -> Result<()> {
+        instructions::create_round_secret_permission::handler(ctx, id)
     }
 
     pub fn start_game(ctx: Context<StartGame>) -> Result<()> {

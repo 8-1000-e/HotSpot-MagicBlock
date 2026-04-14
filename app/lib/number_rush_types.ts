@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/number_rush.json`.
  */
 export type NumberRush = {
-  "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt",
+  "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa",
   "metadata": {
     "name": "numberRush",
     "version": "0.1.0",
@@ -61,23 +61,29 @@ export type NumberRush = {
           "writable": true
         },
         {
+          "name": "group",
+          "writable": true
+        },
+        {
           "name": "payer",
-          "docs": [
-            "Server wallet — pays for the permission account rent"
-          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "permissionProgram",
-          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+          "address": "BTWAqWNBmF2TboMh3fxMJfgR16xGHYD7Kgr2dPwbRPBi"
         },
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "id",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "createRoundSecretPermission",
@@ -122,20 +128,29 @@ export type NumberRush = {
           "writable": true
         },
         {
+          "name": "group",
+          "writable": true
+        },
+        {
           "name": "payer",
           "writable": true,
           "signer": true
         },
         {
           "name": "permissionProgram",
-          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+          "address": "BTWAqWNBmF2TboMh3fxMJfgR16xGHYD7Kgr2dPwbRPBi"
         },
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "id",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "delegateGame",
@@ -174,38 +189,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -309,38 +324,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -444,38 +459,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -561,7 +576,7 @@ export type NumberRush = {
         },
         {
           "name": "ownerProgram",
-          "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+          "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
         },
         {
           "name": "delegationProgram",
@@ -614,38 +629,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -749,38 +764,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -866,7 +881,7 @@ export type NumberRush = {
         },
         {
           "name": "ownerProgram",
-          "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+          "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
         },
         {
           "name": "delegationProgram",
@@ -922,38 +937,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -1057,38 +1072,38 @@ export type NumberRush = {
             "program": {
               "kind": "const",
               "value": [
-                168,
-                195,
-                191,
-                174,
-                95,
-                81,
-                47,
-                195,
-                3,
-                233,
-                42,
+                12,
+                149,
+                158,
                 72,
                 100,
-                221,
-                80,
-                146,
-                192,
-                150,
-                62,
-                184,
-                212,
-                106,
-                168,
-                138,
-                245,
-                182,
-                100,
-                147,
-                44,
-                69,
-                34,
-                133
+                120,
+                54,
+                28,
+                241,
+                94,
+                51,
+                40,
+                234,
+                188,
+                76,
+                26,
+                117,
+                50,
+                52,
+                31,
+                47,
+                228,
+                53,
+                45,
+                98,
+                113,
+                226,
+                205,
+                24,
+                226,
+                78,
+                109
               ]
             }
           }
@@ -1178,7 +1193,7 @@ export type NumberRush = {
         },
         {
           "name": "ownerProgram",
-          "address": "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+          "address": "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
         },
         {
           "name": "delegationProgram",
@@ -1204,6 +1219,22 @@ export type NumberRush = {
         252
       ],
       "accounts": [
+        {
+          "name": "authority",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Fee payer on PER (sessionKp or wallet)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sessionToken",
+          "optional": true
+        },
         {
           "name": "gameConfig",
           "writable": true
@@ -1259,14 +1290,6 @@ export type NumberRush = {
           }
         },
         {
-          "name": "authority",
-          "docs": [
-            "Creator of the game — receives platform fee, must match game_config.authority"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
           "name": "magicProgram",
           "address": "Magic11111111111111111111111111111111111111"
         },
@@ -1291,6 +1314,18 @@ export type NumberRush = {
         63
       ],
       "accounts": [
+        {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sessionToken",
+          "optional": true
+        },
         {
           "name": "gameConfig",
           "writable": true
@@ -1368,11 +1403,6 @@ export type NumberRush = {
               }
             ]
           }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
         }
       ],
       "args": []
@@ -1579,6 +1609,18 @@ export type NumberRush = {
       ],
       "accounts": [
         {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sessionToken",
+          "optional": true
+        },
+        {
           "name": "gameConfig",
           "writable": true
         },
@@ -1604,11 +1646,6 @@ export type NumberRush = {
               }
             ]
           }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
         },
         {
           "name": "oracleQueue",
@@ -1779,6 +1816,21 @@ export type NumberRush = {
       ],
       "accounts": [
         {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Fee payer on PER — either the creator's wallet or their session keypair"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sessionToken",
+          "optional": true
+        },
+        {
           "name": "gameConfig",
           "writable": true
         },
@@ -1802,11 +1854,6 @@ export type NumberRush = {
               }
             ]
           }
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
         }
       ],
       "args": []
@@ -1824,6 +1871,25 @@ export type NumberRush = {
         3
       ],
       "accounts": [
+        {
+          "name": "authority",
+          "relations": [
+            "playerState",
+            "playerGuess"
+          ]
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Session signer (paid fees on PER; wallet or ephemeral session keypair)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sessionToken",
+          "optional": true
+        },
         {
           "name": "playerState",
           "writable": true
@@ -1860,14 +1926,6 @@ export type NumberRush = {
               }
             ]
           }
-        },
-        {
-          "name": "authority",
-          "signer": true,
-          "relations": [
-            "playerState",
-            "playerGuess"
-          ]
         }
       ],
       "args": [
@@ -1999,6 +2057,19 @@ export type NumberRush = {
       ]
     },
     {
+      "name": "sessionToken",
+      "discriminator": [
+        233,
+        4,
+        115,
+        14,
+        46,
+        21,
+        1,
+        15
+      ]
+    },
+    {
       "name": "vault",
       "discriminator": [
         211,
@@ -2102,6 +2173,11 @@ export type NumberRush = {
       "code": 6017,
       "name": "maxPlayersReached",
       "msg": "Max players reached for this game"
+    },
+    {
+      "code": 6018,
+      "name": "invalidAuthority",
+      "msg": "Invalid authority — session token does not match player state"
     }
   ],
   "types": [
@@ -2480,6 +2556,30 @@ export type NumberRush = {
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "sessionToken",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "targetProgram",
+            "type": "pubkey"
+          },
+          {
+            "name": "sessionSigner",
+            "type": "pubkey"
+          },
+          {
+            "name": "validUntil",
+            "type": "i64"
           }
         ]
       }

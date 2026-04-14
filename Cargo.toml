@@ -1,6 +1,10 @@
 [workspace]
-members = ["programs/number-rush"]
+members = ["programs/number-rush", "crates/magicblock-permission-client"]
 resolver = "2"
+
+[workspace.dependencies]
+magicblock-permission-client = { path = "crates/magicblock-permission-client" }
+session-keys = { version = "3.0.11", features = ["no-entrypoint"] }
 
 [profile.release]
 overflow-checks = true

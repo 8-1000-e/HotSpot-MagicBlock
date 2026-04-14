@@ -1,66 +1,57 @@
 use anchor_lang::prelude::*;
-use ephemeral_rollups_sdk::access_control::instructions::CreatePermissionCpiBuilder;
-use ephemeral_rollups_sdk::access_control::structs::{
-    Member, MembersArgs, TX_BALANCES_FLAG, TX_LOGS_FLAG, TX_MESSAGE_FLAG,
+use magicblock_permission_client::instructions::{
+    CreateGroupCpiBuilder, CreatePermissionCpiBuilder,
 };
-use ephemeral_rollups_sdk::consts::PERMISSION_PROGRAM_ID;
 
 use crate::constants::*;
-use crate::state::*;
 
-/// Create a Permission for a PlayerGuess account, restricting reads to the player only.
-/// This must be called AFTER the PlayerGuess has been delegated to the PER.
+/// Creates a Group + Permission for a PlayerGuess.
 ///
-/// Members = [player_authority] → only this player can read their own guesses via RPC on the PER.
-/// Other players cannot read this account through the RPC even though it lives on the PER.
+/// Must be called BEFORE `delegate_player` — the PlayerGuess must still be owned by this
+/// program so we can sign the CPI as the delegated_account signer.
 ///
-/// Server pays for the permission account rent (player only signs spawn_player).
-pub fn handler(ctx: Context<CreatePlayerPermission>) -> Result<()> {
+/// The group contains only the player_authority → only they can read guesses on the PER.
+pub fn handler(ctx: Context<CreatePlayerPermission>, id: Pubkey) -> Result<()> {
     let player_key = ctx.accounts.player_authority.key();
     let game_key = ctx.accounts.game_config.key();
 
-    // Derive the seeds + bump for the PlayerGuess PDA so we can sign the CPI on its behalf
-    let seed_data: Vec<Vec<u8>> = vec![
-        GUESS_SEED.to_vec(),
-        game_key.to_bytes().to_vec(),
-        player_key.to_bytes().to_vec(),
-    ];
-
-    let (_, bump) = Pubkey::find_program_address(
-        &seed_data.iter().map(|s| s.as_slice()).collect::<Vec<_>>(),
-        &crate::ID,
-    );
-
-    let mut seeds = seed_data.clone();
-    seeds.push(vec![bump]);
-    let seed_refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
-
-    // Restrict the PlayerGuess to be readable only by the player
-    // Flags: full read access (logs, balances, message)
-    let members = Some(vec![Member {
-        flags: TX_LOGS_FLAG | TX_BALANCES_FLAG | TX_MESSAGE_FLAG,
-        pubkey: player_key,
-    }]);
-
-    CreatePermissionCpiBuilder::new(&ctx.accounts.permission_program.to_account_info())
-        .permissioned_account(&ctx.accounts.player_guess.to_account_info())
-        .permission(&ctx.accounts.permission.to_account_info())
+    // 1. Create a group with the player as the only member
+    CreateGroupCpiBuilder::new(&ctx.accounts.permission_program.to_account_info())
+        .group(&ctx.accounts.group.to_account_info())
+        .id(id)
+        .members(vec![player_key])
         .payer(&ctx.accounts.payer.to_account_info())
         .system_program(&ctx.accounts.system_program.to_account_info())
-        .args(MembersArgs { members })
-        .invoke_signed(&[seed_refs.as_slice()])?;
+        .invoke()?;
+
+    // 2. Create the permission binding player_guess to the group.
+    //    player_guess is a PDA owned by our program, so we sign via invoke_signed.
+    let (_, bump) = Pubkey::find_program_address(
+        &[GUESS_SEED, game_key.as_ref(), player_key.as_ref()],
+        &crate::ID,
+    );
+    let seeds: &[&[u8]] = &[GUESS_SEED, game_key.as_ref(), player_key.as_ref(), &[bump]];
+
+    CreatePermissionCpiBuilder::new(&ctx.accounts.permission_program.to_account_info())
+        .permission(&ctx.accounts.permission.to_account_info())
+        .delegated_account(&ctx.accounts.player_guess.to_account_info())
+        .group(&ctx.accounts.group.to_account_info())
+        .payer(&ctx.accounts.payer.to_account_info())
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(&[seeds])?;
 
     Ok(())
 }
 
 #[derive(Accounts)]
 pub struct CreatePlayerPermission<'info> {
-    pub game_config: Account<'info, GameConfig>,
+    /// CHECK: just used as seed reference for the player_guess PDA
+    pub game_config: UncheckedAccount<'info>,
 
-    /// CHECK: just used as seed reference (no signer required, server pays)
+    /// CHECK: used as seed reference, no signer needed (server pays)
     pub player_authority: UncheckedAccount<'info>,
 
-    /// CHECK: validated by the permission program via PDA seeds
+    /// CHECK: PDA owned by this program; becomes signer via invoke_signed for the permission CPI
     #[account(
         seeds = [GUESS_SEED, game_config.key().as_ref(), player_authority.key().as_ref()],
         bump,
@@ -71,12 +62,15 @@ pub struct CreatePlayerPermission<'info> {
     #[account(mut)]
     pub permission: UncheckedAccount<'info>,
 
-    /// Server wallet — pays for the permission account rent
+    /// CHECK: created by the permission program CPI (group PDA, id-seeded)
+    #[account(mut)]
+    pub group: UncheckedAccount<'info>,
+
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    /// CHECK: PERMISSION PROGRAM
-    #[account(address = PERMISSION_PROGRAM_ID)]
+    /// CHECK: the magicblock permission program
+    #[account(address = magicblock_permission_client::ID)]
     pub permission_program: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,

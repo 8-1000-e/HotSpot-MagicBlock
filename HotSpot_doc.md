@@ -155,9 +155,11 @@ La commission de la plateforme est déduite du pot brut avant distribution.
 
 ### Architecture — Anchor pur + PER
 
-Le programme utilise Anchor 0.32.1 + `ephemeral-rollups-sdk 0.8.0` (features `anchor` + `access-control`) pour la délégation vers le Private Ephemeral Rollup et la gestion des permissions. Pas de BOLT ECS — le jeu n'a pas besoin du pattern Entity/Component/System car il n'y a pas d'entités en mouvement temps réel.
+Le programme utilise Anchor 0.32.1 + `ephemeral-rollups-sdk 0.8.0` (feature `anchor`) pour la délégation, `magicblock-permission-client` (vendored) pour les permissions Group+Permission du TEE, et `session-keys 3.0.11` pour le pattern session signer. Pas de BOLT ECS — le jeu n'a pas besoin du pattern Entity/Component/System car il n'y a pas d'entités en mouvement temps réel.
 
-**Programme unique** : `number_rush` (`3ufsJSDXPz2kSWuZr9bSPM4azb9u8PanYgNDsrK9iohQ`) contient toute la logique (accounts + instructions + delegation + permissions).
+**Programme unique** : `number_rush` (`r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa`) contient toute la logique (accounts + instructions + delegation + permissions + session validation).
+
+**Vendored crate** : [crates/magicblock-permission-client/](crates/magicblock-permission-client/) — copié depuis `magicblock-labs/private-payments-demo` (le repo upstream est privé, non publié sur crates.io).
 
 **Structure du code** :
 ```
@@ -179,12 +181,21 @@ programs/number-rush/src/
     ├── delegate_game.rs
     ├── delegate_meta.rs
     ├── delegate_player.rs
-    ├── create_player_permission.rs       ← Permission Program CPI (PlayerGuess privé)
-    ├── create_round_secret_permission.rs ← Permission Program CPI (RoundSecret privé)
-    ├── start_game.rs
-    ├── submit_guess.rs
-    ├── end_round.rs
-    └── end_game.rs
+    ├── create_player_permission.rs       ← CreateGroup + CreatePermission CPI (PlayerGuess privé)
+    ├── create_round_secret_permission.rs ← CreateGroup (members vide) + CreatePermission CPI
+    ├── start_game.rs                     ← Session-aware (PER)
+    ├── request_target.rs                 ← VRF request via DEFAULT_EPHEMERAL_QUEUE (PER)
+    ├── vrf_callback_set_target.rs        ← Callback signé par VRF identity (PER)
+    ├── submit_guess.rs                   ← Session-aware (PER)
+    ├── end_round.rs                      ← Session-aware (PER)
+    └── end_game.rs                       ← Session-aware + commit_and_undelegate (PER → L1)
+```
+
+**Workspace** :
+```
+crates/magicblock-permission-client/    ← Vendored client (repo upstream privé)
+programs/number-rush/                    ← Programme Anchor principal
+app/                                     ← Frontend Next.js
 ```
 
 **Accounts** (state) :
@@ -203,30 +214,35 @@ programs/number-rush/src/
 
 | Instruction | Quand | Signé par | Où |
 |---|---|---|---|
-| `init_game` | Création du lobby | Creator + serveur | L1 |
-| `spawn_player` | Join + deposit bet | **Player** + serveur | L1 |
-| `delegate_game` | Après init | Serveur | L1 → PER (game_config + vault + round_secret) |
-| `delegate_meta` | Après init | Serveur | L1 → PER (leaderboard + round_reveal) |
-| `delegate_player` | Après spawn | Serveur | L1 → PER (player_state + player_guess) |
-| `create_player_permission` | Après delegate_player | Serveur | PER |
-| `create_round_secret_permission` | Après delegate_game | Serveur | PER |
-| `start_game` | Lobby terminé | Serveur ou crank | PER |
-| `submit_guess` | Chaque tentative | **Session key** (no popup) | PER |
-| `end_round` | Fin de round | Serveur ou crank | PER |
-| `end_game` | Fin partie + payout | Serveur ou crank | PER → L1 (commit + undelegate) |
+| `init_game` | Création du lobby | Creator | L1 |
+| `spawn_player` | Join + deposit bet | Player | L1 |
+| `create_player_permission` | **Avant** delegate_player | Player | L1 (CPI Group + Permission via `magicblock-permission-client`) |
+| `create_round_secret_permission` | **Avant** delegate_game | Creator | L1 (idem, group avec members vide) |
+| `delegate_game` | Après init + permissions | Creator | L1 → PER (game_config + vault + round_secret) |
+| `delegate_meta` | Après init | Creator | L1 → PER (leaderboard + round_reveal) |
+| `delegate_player` | Après spawn + permission | Player | L1 → PER (player_state + player_guess) |
+| `start_game` | Lobby terminé | Creator via session key | PER |
+| `request_target` | Juste après start_game | Creator via session key | PER (CPI VRF) |
+| `submit_guess` | Chaque tentative | Player via session key (no popup) | PER |
+| `end_round` | Fin de round | Creator via session key | PER |
+| `end_game` | Fin partie + payout | Creator via session key | PER → L1 (commit + undelegate) |
 
-**Pattern `payer ≠ player`** : Pour minimiser la friction UX, le serveur backend (`payer`) prend en charge tous les coûts opérationnels :
-- Rent des PDAs (player_state, player_guess, permissions)
-- Frais de délégation
-- Frais de création des permissions
+**Important : ordre des permissions** — Les `create_*_permission` doivent être appelées **AVANT** les `delegate_*` correspondantes. Le CPI `CreatePermission` exige que le `delegated_account` soit signer via `invoke_signed` avec les seeds de la PDA, ce qui n'est possible que tant que le compte appartient au programme number_rush (avant délégation au delegation program).
 
-Le **joueur** ne signe **qu'une seule TX** dans tout le flow de join (`spawn_player`) où il ne paie **que sa mise**. Les instructions `delegate_player` et `create_player_permission` reçoivent le `player_authority` comme `UncheckedAccount` (pubkey de référence pour les seeds) sans nécessiter sa signature. Les seeds des PDAs garantissent qu'on opère bien sur les comptes du bon joueur.
+**Pattern frontend pour les TX TEE** :
+- `payer` = `sessionKp.publicKey` (keypair éphémère du navigateur)
+- `authority` = `wallet.publicKey` (référence — pas signer direct, validée via session_token)
+- `session_token` = PDA Gum dérivée de `[session_token, target_program, sessionSigner, authority]`
+- `wallet.signTransaction` n'est PAS appelé sur le PER — seul le sessionKp signe et paye
 
 ```
 Flow joueur :
-1. spawn_player              → 1 popup wallet (signe + transfer bet)
-2. delegate_player           → 0 popup (serveur seul)
-3. create_player_permission  → 0 popup (serveur seul)
+1. spawn_player              → popup wallet (signe + transfer bet) sur L1
+2. create_player_permission  → popup wallet (group + permission CPI) sur L1
+3. delegate_player           → popup wallet sur L1
+4. createSession (Gum)       → popup wallet, génère sessionKp local, valide 1h
+5. getAuthToken TEE          → popup signMessage pour auth RPC
+6. submit_guess (et toutes ER) → 0 popup, sessionKp signe et paye
 ```
 
 **Note** : `delegate_game` est splitté en 2 instructions (`delegate_game` + `delegate_meta`) car déléguer 5 accounts en une seule TX dépasse la stack limit du SBF VM.
@@ -245,44 +261,62 @@ Le PER est un environnement d'exécution temporaire qui tourne dans un TEE (Trus
 | Validator | magicblock.app standard | TEE validators spécifiques |
 | Frontend connect | `new Connection(ER_RPC)` | `verifyTeeRpcIntegrity()` → `getAuthToken()` → `?token=...` |
 
-**Permission Program** (`ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1`) :
-- Chaque `PlayerGuess` a un compte `permission` associé créé via `create_player_permission`
-- `members = [Member { flags: TX_LOGS|TX_BALANCES|TX_MESSAGE, pubkey: player }]` → seul ce joueur peut lire
-- En fin de round : `UpdatePermissionCpiBuilder` avec `members = None` → tout le monde peut lire (reveal)
-- Début du round suivant : permissions re-créées
-- Le `RoundSecret` n'est jamais lisible via RPC — seul le programme y accède dans les instructions
+**Permission Program** (`BTWAqWNBmF2TboMh3fxMJfgR16xGHYD7Kgr2dPwbRPBi`) :
 
-**Pattern CPI utilisé** (suit l'exemple officiel `anchor-rock-paper-scissor`) :
+Le TEE utilise le **nouveau** modèle Group + Permission, pas le modèle members-inline de l'ancien `ACLseoPoy…` (qui appartient au SDK obsolète `ephemeral_rollups_sdk::access_control` et n'est PAS reconnu par le validator TEE).
+
+- 1 `Group` PDA (seeds `["group:", id]`) contient la liste des `members`
+- 1 `Permission` PDA (seeds `["permission:", delegated_account]`) lie un compte délégué à un Group
+- Plusieurs Permissions peuvent partager un même Group → mutualisation des règles
+- `RoundSecret` → Group avec `members = []` (personne lit, le programme accède via instruction)
+- `PlayerGuess` → Group avec `members = [player_authority]` (seul ce joueur lit via RPC)
+
+**Pattern CPI** (vendored client `magicblock-permission-client`) :
 ```rust
-use ephemeral_rollups_sdk::access_control::instructions::CreatePermissionCpiBuilder;
-use ephemeral_rollups_sdk::access_control::structs::{Member, MembersArgs, TX_LOGS_FLAG, ...};
+use magicblock_permission_client::instructions::{CreateGroupCpiBuilder, CreatePermissionCpiBuilder};
 
-CreatePermissionCpiBuilder::new(&permission_program)
-    .permissioned_account(&player_guess.to_account_info())
-    .permission(&permission)
-    .payer(&player)
+// 1. Group avec les members autorisés
+CreateGroupCpiBuilder::new(&permission_program)
+    .group(&group_pda)
+    .id(unique_id)
+    .members(vec![player_authority])
+    .payer(&payer)
     .system_program(&system_program)
-    .args(MembersArgs { members: Some(vec![Member { flags, pubkey }]) })
-    .invoke_signed(&[seeds_with_bump])?;
+    .invoke()?;
+
+// 2. Permission liée au compte délégué + au group, signée par la PDA du compte
+CreatePermissionCpiBuilder::new(&permission_program)
+    .permission(&permission_pda)
+    .delegated_account(&player_guess.to_account_info())
+    .group(&group_pda)
+    .payer(&payer)
+    .system_program(&system_program)
+    .invoke_signed(&[&[GUESS_SEED, game.as_ref(), authority.as_ref(), &[bump]]])?;
 ```
 
-**TEE Validators** :
-- Devnet : `FnE6VJT5QNZdedZPnCoLsARgBwoE6DeJNjBs2H1gySXA`
-- Mainnet : `MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo`
+**TEE Endpoint & Validator (devnet)** :
+- RPC : `https://devnet-tee.magicblock.app` (use `getIdentity` to verify)
+- Validator pubkey : `MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo` — **doit matcher** la pubkey passée à `DelegateConfig.validator` côté programme, sinon les comptes sont délégués au mauvais validator et toutes les TX TEE échouent avec "Transaction loads a writable account that cannot be written"
+
+**Note historique** : `tee.magicblock.app` (validator `FnE6VJT5…`) était un endpoint plus ancien, instable (Cloudflare 526 SSL errors) et **sans VRF activé**. C'est `devnet-tee` qui supporte VRF.
 
 **Delegation Program** : `DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh`
 
+**GPL Session Program** : `KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5` (déployé sur devnet par MagicBlock)
+
 **Auth côté frontend :**
 ```typescript
-import { verifyTeeRpcIntegrity, getAuthToken } from "@magicblock-labs/ephemeral-rollups-sdk";
+import { getAuthToken } from "@magicblock-labs/ephemeral-rollups-sdk";
 
-const isVerified = await verifyTeeRpcIntegrity(EPHEMERAL_RPC_URL);
 const token = await getAuthToken(
-  EPHEMERAL_RPC_URL,
+  TEE_RPC_BASE,           // https://devnet-tee.magicblock.app
   wallet.publicKey,
   (msg: Uint8Array) => wallet.signMessage(msg)
 );
-const perConnection = new Connection(`https://devnet-tee.magicblock.app?token=${token}`);
+const perConnection = new Connection(
+  `${TEE_RPC_BASE}?token=${token}`,
+  { wsEndpoint: `${TEE_WS_BASE}?token=${token}` }
+);
 ```
 
 **Visibilité sur le PER :**
@@ -299,20 +333,52 @@ const perConnection = new Connection(`https://devnet-tee.magicblock.app?token=${
 
 ### VRF Magic Block
 
-Le VRF (Verifiable Random Function) est utilisé pour générer le nombre cible à chaque round. Il garantit que le résultat est aléatoire, vérifiable, et non manipulable — ni par les joueurs, ni par la plateforme.
+Le VRF (Verifiable Random Function) génère le nombre cible à chaque round. Il garantit que le résultat est aléatoire, vérifiable, et non manipulable — ni par les joueurs, ni par la plateforme.
 
-Règle importante : le VRF est appelé et son résultat est commité on-chain AVANT l'ouverture des soumissions des joueurs. Cette séquence est obligatoire pour garantir la fairness. Si le nombre était généré après les premières soumissions, un vecteur de manipulation existerait.
+**Architecture** :
+- Programme VRF : `Vrf1RNUjXmQGjmQrQLvJHs9SNkvDJEsRVFPkfSQUwGz`
+- Identité oracle : `9irBy75QS2BN81FUgXuHcjqceJJRuc9oDkAe8TKVvvAw`
+- Queue ephemeral (TEE) : `5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc` (constante `DEFAULT_EPHEMERAL_QUEUE`)
 
-### Session keys
+**Important : VRF doit tourner sur le TEE, pas sur L1.** Une requête VRF émise sur L1 écrit le `target_number` en clair sur L1 (snapshot public) avant qu'il puisse être protégé par le TEE — fuite immédiate. Notre `request_target` est exécuté **après** délégation, sur le PER, avec la queue ephemeral. L'oracle écoute sur le validator TEE et y livre directement le callback `vrf_callback_set_target` qui écrit dans le `RoundSecret` déjà permissionné.
 
-Les session keys permettent aux joueurs de soumettre des guesses sans popup wallet à chaque tentative. Le joueur signe une seule fois pour créer sa session key, puis toutes les TX gameplay sont signées par la session key.
+Ordre obligatoire :
+1. `delegate_game` → round_secret passe au validator TEE
+2. `create_round_secret_permission` (avant délégation, pour que le compte naisse déjà privé)
+3. `start_game` (PER) → status = Playing
+4. `request_target` (PER) → CPI VRF → callback ~5s plus tard
+5. Joueurs commencent à soumettre
+
+### Session keys (Gum SessionToken)
+
+Le TEE **refuse** le wallet utilisateur comme fee payer (`This account may not be used to pay transaction fees`). On utilise donc le pattern session key standard MagicBlock via le programme [GPL Session](https://github.com/magicblock-labs/gum-program-library) :
 
 ```
-1. Player signe 1 TX wallet → crée SessionToken PDA
-2. Session key = keypair éphémère (validité 60min, funded 0.002 SOL)
-3. submit_guess TX signées par session key → 0 popup
-4. Session expire ou révoquée manuellement
+[Wallet utilisateur (Phantom)]
+        │ signe UNE fois createSession sur L1
+        ▼
+[SessionToken PDA on L1]
+   { authority, session_signer, target_program, valid_until }
+        │ référence cryptographique
+        ▼
+[sessionKp éphémère (mémoire navigateur, perdu au refresh)]
+        │ signe + paye toutes les TX TEE pour le compte du wallet
+        ▼
+[TEE PER] ✅
 ```
+
+**Côté programme** :
+- Macro `#[derive(Session)]` sur le struct Accounts
+- Champ `session_token: Option<Account<'info, SessionToken>>` avec `#[session(signer = payer, authority = authority.key())]`
+- Macro `#[session_auth_or(condition, error)]` sur le handler — autorise si soit `authority` est signer direct, soit le SessionToken valide est présent
+
+**Côté frontend** :
+- `Keypair.generate()` à la création de la session
+- `SessionTokenManager.program.methods.createSession(true, validUntil, null)` — top_up automatique depuis l'authority si le sessionKp manque de SOL
+- Pour chaque TX TEE : `tx.feePayer = sessionKp.publicKey; tx.sign(sessionKp)` (le wallet ne signe pas)
+- Validité par défaut : 1h. Au refresh, on perd le sessionKp et il faut re-créer une session.
+
+**Sécurité** : si quelqu'un vole le sessionKp, il peut faire des TX au nom du wallet **uniquement** sur notre programme `r8DW7E…` et **uniquement** pendant la durée de validité. Pas d'accès au reste du wallet.
 
 ### Settlement Solana Devnet
 
@@ -347,7 +413,9 @@ La collusion externe (deux joueurs qui se partagent leurs chiffres via un chat v
 | Limite par round | 15 tentatives max |
 | Exclusion passive | 3 rounds sans soumission = hors leaderboard |
 | Génération du nombre | VRF Magic Block, commité avant les soumissions |
-| Confidentialité | Private Ephemeral Rollup (PER) + Permission Program + TEE |
-| Framework on-chain | Anchor 0.32.1 + ephemeral-rollups-sdk 0.8.0 (features anchor + access-control) |
+| Confidentialité | Private Ephemeral Rollup (PER) + Permission Program (Group/Permission) + TEE |
+| Framework on-chain | Anchor 0.32.1 + ephemeral-rollups-sdk 0.8.0 + magicblock-permission-client (vendored) + session-keys 3.0.11 |
+| Endpoint TEE | `https://devnet-tee.magicblock.app` (validator `MTEWGuqx…`) |
+| Program ID | `r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa` |
 | Règlement final | Solana Devnet (commit + undelegate) |
 | Commission plateforme | % prélevé sur le pot brut avant distribution |

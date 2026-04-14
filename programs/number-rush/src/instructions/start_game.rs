@@ -1,8 +1,13 @@
 use anchor_lang::prelude::*;
+use session_keys::{session_auth_or, Session, SessionError, SessionToken};
 use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
+#[session_auth_or(
+    ctx.accounts.authority.key() == ctx.accounts.game_config.authority,
+    GameError::Unauthorized
+)]
 pub fn handler(ctx: Context<StartGame>) -> Result<()>
 {
     let now_slot = Clock::get()?.slot;
@@ -20,8 +25,21 @@ pub fn handler(ctx: Context<StartGame>) -> Result<()>
     Ok(())
 }
 
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 pub struct StartGame<'info> {
+    /// CHECK: must match game_config.authority (creator)
+    pub authority: AccountInfo<'info>,
+
+    /// Fee payer on PER — either the creator's wallet or their session keypair
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[session(
+        signer = payer,
+        authority = authority.key()
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut)]
     pub game_config: Account<'info, GameConfig>,
 
@@ -30,7 +48,4 @@ pub struct StartGame<'info> {
         bump = vault.bump,
     )]
     pub vault: Account<'info, Vault>,
-
-    #[account(mut)]
-    pub payer: Signer<'info>,
 }

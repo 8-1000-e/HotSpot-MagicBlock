@@ -1,11 +1,16 @@
 use anchor_lang::prelude::*;
+use session_keys::{session_auth_or, Session, SessionError, SessionToken};
 use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
-pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()> 
+#[session_auth_or(
+    ctx.accounts.authority.key() == ctx.accounts.player_state.authority,
+    GameError::InvalidAuthority
+)]
+pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()>
 {
-    
+
     require!(ctx.accounts.game_config.status == GameStatus::Playing, GameError::InvalidGameStatus);
     require!(ctx.accounts.player_state.alive, GameError::PlayerEliminated);
     require!(!ctx.accounts.player_state.found_this_round, GameError::AlreadyFound);
@@ -71,8 +76,21 @@ pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()>
     Ok(())
 }
 
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 pub struct SubmitGuess<'info> {
+    /// CHECK: matched against player_state.authority (either directly signs or via session token)
+    pub authority: AccountInfo<'info>,
+
+    /// Session signer (paid fees on PER; wallet or ephemeral session keypair)
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[session(
+        signer = payer,
+        authority = authority.key()
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut, has_one = authority)]
     pub player_state: Account<'info, PlayerState>,
 
@@ -88,7 +106,4 @@ pub struct SubmitGuess<'info> {
         bump = round_secret.bump,
     )]
     pub round_secret: Account<'info, RoundSecret>,
-
-    pub authority: Signer<'info>,
-    // NOTE: in production, authority = session key signer (not wallet)
 }

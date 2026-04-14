@@ -2,10 +2,15 @@ use anchor_lang::prelude::*;
 use ephemeral_vrf_sdk::anchor::vrf;
 use ephemeral_vrf_sdk::instructions::{create_request_randomness_ix, RequestRandomnessParams};
 use ephemeral_vrf_sdk::types::SerializableAccountMeta;
+use session_keys::{session_auth_or, Session, SessionError, SessionToken};
 use crate::constants::*;
 use crate::errors::*;
 use crate::state::*;
 
+#[session_auth_or(
+    ctx.accounts.authority.key() == ctx.accounts.game_config.authority,
+    GameError::Unauthorized
+)]
 pub fn handler(ctx: Context<RequestTarget>) -> Result<()>
 {
     require!(ctx.accounts.game_config.status == GameStatus::Playing, GameError::InvalidGameStatus);
@@ -38,8 +43,20 @@ pub fn handler(ctx: Context<RequestTarget>) -> Result<()>
 }
 
 #[vrf]
-#[derive(Accounts)]
+#[derive(Accounts, Session)]
 pub struct RequestTarget<'info> {
+    /// CHECK: must match game_config.authority
+    pub authority: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[session(
+        signer = payer,
+        authority = authority.key()
+    )]
+    pub session_token: Option<Account<'info, SessionToken>>,
+
     #[account(mut)]
     pub game_config: Account<'info, GameConfig>,
 
@@ -49,9 +66,6 @@ pub struct RequestTarget<'info> {
         bump = round_secret.bump,
     )]
     pub round_secret: Account<'info, RoundSecret>,
-
-    #[account(mut)]
-    pub payer: Signer<'info>,
 
     /// CHECK: The ephemeral VRF oracle queue (PER/TEE queue, not the L1 one)
     #[account(mut, address = ephemeral_vrf_sdk::consts::DEFAULT_EPHEMERAL_QUEUE)]

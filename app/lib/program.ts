@@ -11,6 +11,8 @@ import {
   SECRET_SEED,
   LEADERBOARD_SEED,
   REVEAL_SEED,
+  PERMISSION_PROGRAM_ID,
+  SESSION_PROGRAM_ID,
 } from "./constants";
 
 // Import IDL
@@ -75,7 +77,36 @@ export function getPlayerGuessPda(gameConfig: PublicKey, player: PublicKey): Pub
 }
 
 export function getPermissionPda(account: PublicKey): PublicKey {
-  return permissionPdaFromAccount(account);
+  // magicblock-permission-client uses seed "permission:" (same as sdk helper)
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("permission:"), account.toBuffer()],
+    PERMISSION_PROGRAM_ID
+  );
+  return pda;
+}
+
+export function getGroupPda(id: PublicKey): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("group:"), id.toBuffer()],
+    PERMISSION_PROGRAM_ID
+  );
+  return pda;
+}
+
+export function getSessionTokenPda(
+  sessionSigner: PublicKey,
+  authority: PublicKey
+): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("session_token"),
+      PROGRAM_ID.toBuffer(),
+      sessionSigner.toBuffer(),
+      authority.toBuffer(),
+    ],
+    SESSION_PROGRAM_ID
+  );
+  return pda;
 }
 
 // ─── Program instance ───

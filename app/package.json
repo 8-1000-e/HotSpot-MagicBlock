@@ -11,6 +11,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
     "@magicblock-labs/ephemeral-rollups-sdk": "^0.10.5",
+    "@magicblock-labs/gum-sdk": "^3.0.10",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",

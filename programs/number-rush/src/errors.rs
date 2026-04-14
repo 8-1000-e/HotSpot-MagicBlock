@@ -38,4 +38,6 @@ pub enum GameError {
     InvalidGameStatus,
     #[msg("Max players reached for this game")]
     MaxPlayersReached,
+    #[msg("Invalid authority — session token does not match player state")]
+    InvalidAuthority,
 }

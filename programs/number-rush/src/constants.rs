@@ -19,8 +19,9 @@ pub const SECOND_PLACE_BPS: u64 = 2500; // 25%
 pub const THIRD_PLACE_BPS: u64 = 1500;  // 15%
 // 4th+ split remaining 10%
 
-// PER — TEE validator (devnet)
-pub const TEE_VALIDATOR_DEVNET: Pubkey = pubkey!("FnE6VJT5QNZdedZPnCoLsARgBwoE6DeJNjBs2H1gySXA");
+// PER — TEE validator. Identity of devnet-tee.magicblock.app (use `getIdentity` RPC to verify).
+// IMPORTANT: must match the endpoint we send TXs to in the frontend (TEE_RPC_BASE).
+pub const TEE_VALIDATOR_DEVNET: Pubkey = pubkey!("MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo");
 
 // Permission Program
 pub const PERMISSION_PROGRAM: Pubkey = pubkey!("ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1");

@@ -5,10 +5,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-number_rush = "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+number_rush = "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
 
 [programs.devnet]
-number_rush = "CMncdtg37g7aDrszRyaUUhvtU8yia9JuNVrGJxnXbmWt"
+number_rush = "r8DW7ECLY6zhpYzYUazULHUyHCas3A2j1Ecfvzd1xRa"
 
 [registry]
 url = "https://api.apr.dev"

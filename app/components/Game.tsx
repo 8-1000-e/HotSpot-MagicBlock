@@ -8,7 +8,7 @@ const WalletMultiButtonDynamic = dynamic(
   { ssr: false }
 );
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import {
   DELEGATION_PROGRAM_ID,
@@ -16,6 +16,7 @@ import {
   delegationRecordPdaFromDelegatedAccount,
   delegationMetadataPdaFromDelegatedAccount,
 } from "@magicblock-labs/ephemeral-rollups-sdk";
+import { SessionTokenManager } from "@magicblock-labs/gum-sdk";
 import {
   getProgram,
   getGameConfigPda,
@@ -26,10 +27,13 @@ import {
   getPlayerStatePda,
   getPlayerGuessPda,
   getPermissionPda,
+  getGroupPda,
+  getSessionTokenPda,
 } from "../lib/program";
 import {
   PROGRAM_ID, TEE_RPC_BASE, TEE_WS_BASE,
   VRF_ORACLE_QUEUE, VRF_PROGRAM_ID, SLOT_HASHES,
+  PERMISSION_PROGRAM_ID,
 } from "../lib/constants";
 import {
   getAuthToken,
@@ -37,25 +41,40 @@ import {
 
 type Phase = "menu" | "lobby" | "playing" | "finished";
 
-// Helper: build TX, sign with wallet, send on a specific connection
+// Helper: build TX, sign with wallet (L1) OR sessionKp only (PER), send on a specific connection.
+// When `sessionKp` is provided, it is the sole signer + fee payer (TEE requires this).
 async function buildSignSend(
   program: any,
   method: any,
   accounts: any,
   conn: Connection,
   wallet: any,
-  opts?: { remainingAccounts?: any[] }
+  opts?: { remainingAccounts?: any[]; sessionKp?: Keypair }
 ) {
   let builder = method.accountsPartial(accounts);
   if (opts?.remainingAccounts) builder = builder.remainingAccounts(opts.remainingAccounts);
   const tx = await builder.transaction();
   tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+
+  if (opts?.sessionKp) {
+    tx.feePayer = opts.sessionKp.publicKey;
+    tx.sign(opts.sessionKp);
+    const sig = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: false });
+    await conn.confirmTransaction(sig, "confirmed");
+    return sig;
+  }
+
   tx.feePayer = wallet.publicKey;
   const signed = await wallet.signTransaction(tx);
-  // Debug: skipPreflight=false surfaces on-chain errors instead of hiding them
-  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: false });
-  await conn.confirmTransaction(sig, "confirmed");
-  return sig;
+  try {
+    const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: false });
+    await conn.confirmTransaction(sig, "confirmed");
+    return sig;
+  } catch (e: any) {
+    // "already processed" means the TX landed (often via wallet rebroadcast). Treat as success.
+    if (e?.message?.includes("already been processed")) return "(already processed)";
+    throw e;
+  }
 }
 
 export const Game: FC = () => {
@@ -78,6 +97,8 @@ export const Game: FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [guessHistory, setGuessHistory] = useState<{ guess: number; proximity: string; direction: string }[]>([]);
   const [otherPlayers, setOtherPlayers] = useState<any[]>([]);
+  const [sessionKp, setSessionKp] = useState<Keypair | null>(null);
+  const [sessionTokenPda, setSessionTokenPda] = useState<PublicKey | null>(null);
 
   const log = useCallback((msg: string) => {
     console.log(msg);
@@ -93,6 +114,47 @@ export const Game: FC = () => {
     if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions || !erConnection) return null;
     return getProgram(new AnchorProvider(erConnection, wallet as any, { commitment: "confirmed" }));
   }, [wallet, erConnection]);
+
+  // ─── Create session keypair + bind to wallet on L1 (Gum SessionTokenManager) ───
+  // The sessionKp becomes the fee-payer for every TEE TX. Required because the TEE
+  // refuses the user wallet as fee payer; only registered session signers are accepted.
+  const handleCreateSession = useCallback(async () => {
+    if (!wallet.publicKey || !wallet.signTransaction) return;
+    setLoading("Creating session...");
+    try {
+      const newSessionKp = Keypair.generate();
+      const manager = new SessionTokenManager(wallet as any, connection);
+      const tokenPda = getSessionTokenPda(newSessionKp.publicKey, wallet.publicKey);
+
+      // 1h validity, top_up=true (sessionKp auto-tops from authority), lamports=null
+      const oneHour = Math.floor(Date.now() / 1000) + 60 * 60;
+      const tx = await manager.program.methods
+        .createSession(true, new BN(oneHour), null)
+        .accountsPartial({
+          sessionToken: tokenPda,
+          sessionSigner: newSessionKp.publicKey,
+          authority: wallet.publicKey,
+          targetProgram: PROGRAM_ID,
+        })
+        .transaction();
+
+      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      tx.feePayer = wallet.publicKey;
+      tx.partialSign(newSessionKp);
+      const signed = await wallet.signTransaction(tx);
+      try {
+        const sig = await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(sig, "confirmed");
+      } catch (e: any) {
+        if (!e?.message?.includes("already been processed")) throw e;
+      }
+
+      setSessionKp(newSessionKp);
+      setSessionTokenPda(tokenPda);
+      log(`Session created: ${newSessionKp.publicKey.toBase58().slice(0, 8)}…`);
+    } catch (e: any) { log(`Session error: ${e.message}`); }
+    setLoading("");
+  }, [wallet, connection, log]);
 
   // ─── Authenticate to TEE PER ───
   const handleAuthTee = useCallback(async () => {
@@ -282,90 +344,96 @@ export const Game: FC = () => {
     setLoading("");
   }, [getL1Program, wallet.publicKey, gameConfigPda, log, getDelegationPdas, signAndSendAll]);
 
-  // ─── CREATE PLAYER PERMISSION (ER) — restricts PlayerGuess reads to the player ───
+  // ─── CREATE PLAYER PERMISSION (L1) — creates group + permission BEFORE delegation ───
+  // Must run on L1 while player_guess is still owned by this program.
   const handleCreatePlayerPermission = useCallback(async () => {
-    const program = getErProgram();
-    if (!program || !wallet.publicKey || !gameConfigPda || !erConnection) return;
+    const program = getL1Program();
+    if (!program || !wallet.publicKey || !gameConfigPda) return;
     setLoading("Creating player permission...");
     try {
       const playerGuess = getPlayerGuessPda(gameConfigPda, wallet.publicKey);
-      await buildSignSend(program, program.methods.createPlayerPermission(), {
+      const id = Keypair.generate().publicKey; // unique group id
+      await buildSignSend(program, program.methods.createPlayerPermission(id), {
         gameConfig: gameConfigPda,
         playerAuthority: wallet.publicKey,
         playerGuess,
         permission: getPermissionPda(playerGuess),
+        group: getGroupPda(id),
         payer: wallet.publicKey,
-      }, erConnection, wallet);
+        permissionProgram: PERMISSION_PROGRAM_ID,
+      }, connection, wallet);
       log("PlayerGuess is now private (reads restricted to you).");
     } catch (e: any) { log(`Permission error: ${e.message}`); }
     setLoading("");
-  }, [getErProgram, wallet, gameConfigPda, erConnection, log]);
+  }, [getL1Program, wallet, gameConfigPda, connection, log]);
 
-  // ─── CREATE ROUND SECRET PERMISSION (ER) — blocks all RPC reads of target_number ───
+  // ─── CREATE ROUND SECRET PERMISSION (L1) — creates group + empty permission BEFORE delegation ───
   const handleCreateRoundSecretPermission = useCallback(async () => {
-    const program = getErProgram();
-    if (!program || !wallet.publicKey || !gameConfigPda || !erConnection) return;
+    const program = getL1Program();
+    if (!program || !wallet.publicKey || !gameConfigPda) return;
     setLoading("Creating round secret permission...");
     try {
       const roundSecret = getRoundSecretPda(gameConfigPda);
-      await buildSignSend(program, program.methods.createRoundSecretPermission(), {
+      const id = Keypair.generate().publicKey;
+      await buildSignSend(program, program.methods.createRoundSecretPermission(id), {
         gameConfig: gameConfigPda,
         roundSecret,
         permission: getPermissionPda(roundSecret),
+        group: getGroupPda(id),
         payer: wallet.publicKey,
-      }, erConnection, wallet);
+        permissionProgram: PERMISSION_PROGRAM_ID,
+      }, connection, wallet);
       log("RoundSecret is now private (target_number hidden from RPC).");
     } catch (e: any) { log(`Permission error: ${e.message}`); }
     setLoading("");
-  }, [getErProgram, wallet, gameConfigPda, erConnection, log]);
+  }, [getL1Program, wallet, gameConfigPda, connection, log]);
 
-  // ─── START GAME + VRF (PER) — runs AFTER delegation + auth + permissions ───
-  // Target generated on the PER only, protected by RoundSecret permission. Never leaks to L1.
+  // ─── START GAME + VRF (PER) — runs AFTER delegation + auth + permissions + session ───
   const handleStartGame = useCallback(async () => {
     const program = getErProgram();
     if (!program || !wallet.publicKey || !gameConfigPda || !erConnection) return;
+    if (!sessionKp || !sessionTokenPda) { log("Create session first"); return; }
     setLoading("Starting game on PER...");
     try {
-      // 1. start_game on PER — set status Playing (requires delegated game_config + vault)
       await buildSignSend(program, program.methods.startGame(), {
+        authority: wallet.publicKey,
+        payer: sessionKp.publicKey,
+        sessionToken: sessionTokenPda,
         gameConfig: gameConfigPda,
         vault: getVaultPda(gameConfigPda),
-        payer: wallet.publicKey,
-      }, erConnection, wallet);
+      }, erConnection, wallet, { sessionKp });
       log("Status set to Playing!");
 
-      // 2. request_target on PER — VRF writes target_number inside the TEE
       setLoading("Requesting VRF target on PER...");
       const [programIdentity] = PublicKey.findProgramAddressSync([Buffer.from("identity")], PROGRAM_ID);
       await buildSignSend(program, program.methods.requestTarget(), {
+        authority: wallet.publicKey,
+        payer: sessionKp.publicKey,
+        sessionToken: sessionTokenPda,
         gameConfig: gameConfigPda,
         roundSecret: getRoundSecretPda(gameConfigPda),
-        payer: wallet.publicKey,
         oracleQueue: VRF_ORACLE_QUEUE,
         programIdentity,
         vrfProgram: VRF_PROGRAM_ID,
         slotHashes: SLOT_HASHES,
         systemProgram: SystemProgram.programId,
-      }, erConnection, wallet);
+      }, erConnection, wallet, { sessionKp });
       log("VRF requested! Waiting for callback...");
 
-      // 3. Poll for VRF callback — don't try to read target_number (permission blocks it).
-      //    Wait a few seconds for the oracle to respond inside the TEE.
       setLoading("Waiting for VRF callback...");
       await new Promise((r) => setTimeout(r, 5000));
-
       log("Game started! Target is sealed in the TEE.");
       await refreshGameState();
     } catch (e: any) { log(`Error: ${e.message}`); }
     setLoading("");
-  }, [getErProgram, wallet, gameConfigPda, erConnection, log, refreshGameState]);
+  }, [getErProgram, wallet, gameConfigPda, erConnection, sessionKp, sessionTokenPda, log, refreshGameState]);
 
-  // ─── SUBMIT GUESS (ER) — all accounts explicit ───
+  // ─── SUBMIT GUESS (ER) ───
   const handleSubmitGuess = useCallback(async () => {
     const program = getErProgram();
     if (!program || !wallet.publicKey || !gameConfigPda || !guess) return;
+    if (!sessionKp || !sessionTokenPda) { log("Session missing"); return; }
 
-    // Block if already at max attempts
     if (playerState && playerState.roundAttempts >= 15) {
       log("Max attempts reached (15/15)");
       return;
@@ -377,17 +445,18 @@ export const Game: FC = () => {
       const playerStatePda = getPlayerStatePda(gameConfigPda, wallet.publicKey);
       const playerGuessPda = getPlayerGuessPda(gameConfigPda, wallet.publicKey);
 
-      // Fetch current attempts BEFORE sending TX (avoid stale closure)
       const currentState = await program.account.playerState.fetch(playerStatePda);
       const attemptsBefore = currentState.roundAttempts;
 
       const sig = await buildSignSend(program, program.methods.submitGuess(guessNum), {
+        authority: wallet.publicKey,
+        payer: sessionKp.publicKey,
+        sessionToken: sessionTokenPda,
         playerState: playerStatePda,
         playerGuess: playerGuessPda,
         gameConfig: gameConfigPda,
         roundSecret: getRoundSecretPda(gameConfigPda),
-        authority: wallet.publicKey,
-      }, erConnection!, wallet);
+      }, erConnection!, wallet, { sessionKp });
 
       // Fetch TX logs for debug
       try {
@@ -412,6 +481,7 @@ export const Game: FC = () => {
       }
       if (!pState) pState = await program.account.playerState.fetch(playerStatePda);
       setPlayerState(pState);
+      void sig;
 
       const proximityLabels = ["None", "Glacial", "Froid", "Tiede", "Chaud", "Bouillant", "Trouve!"];
       const proxLabel = pState.foundThisRound ? "Trouve!" : (proximityLabels[pState.proximity] || "?");
@@ -424,12 +494,13 @@ export const Game: FC = () => {
       setGuess("");
     } catch (e: any) { log(`Error: ${e.message}`); }
     setLoading("");
-  }, [getErProgram, wallet, gameConfigPda, guess, log]);
+  }, [getErProgram, wallet, gameConfigPda, guess, sessionKp, sessionTokenPda, playerState, erConnection, log]);
 
   // ─── END ROUND (ER) ───
   const handleEndRound = useCallback(async () => {
     const program = getErProgram();
     if (!program || !wallet.publicKey || !gameConfigPda || !gameState) return;
+    if (!sessionKp || !sessionTokenPda) { log("Session missing"); return; }
     setLoading("Ending round...");
     try {
       const playerCount = gameState.playerCount || 0;
@@ -438,20 +509,15 @@ export const Game: FC = () => {
         remainingAccounts.push({ pubkey: new PublicKey(gameState.players[i]), isSigner: false, isWritable: true });
       }
 
-      const [programIdentity] = PublicKey.findProgramAddressSync([Buffer.from("identity")], PROGRAM_ID);
-
       await buildSignSend(program, program.methods.endRound(), {
+        authority: wallet.publicKey,
+        payer: sessionKp.publicKey,
+        sessionToken: sessionTokenPda,
         gameConfig: gameConfigPda,
         leaderboard: getLeaderboardPda(gameConfigPda),
         roundReveal: getRoundRevealPda(gameConfigPda),
         roundSecret: getRoundSecretPda(gameConfigPda),
-        payer: wallet.publicKey,
-        oracleQueue: VRF_ORACLE_QUEUE,
-        programIdentity,
-        vrfProgram: VRF_PROGRAM_ID,
-        slotHashes: SLOT_HASHES,
-        systemProgram: SystemProgram.programId,
-      }, erConnection!, wallet, { remainingAccounts });
+      }, erConnection!, wallet, { remainingAccounts, sessionKp });
 
       log("Round ended!");
       setGuessHistory([]);
@@ -459,7 +525,7 @@ export const Game: FC = () => {
       await refreshPlayerState();
     } catch (e: any) { log(`Error: ${e.message}`); }
     setLoading("");
-  }, [getErProgram, wallet, gameConfigPda, gameState, log, refreshGameState, refreshPlayerState]);
+  }, [getErProgram, wallet, gameConfigPda, gameState, sessionKp, sessionTokenPda, erConnection, log, refreshGameState, refreshPlayerState]);
 
   // ─── DEBUG: inspect VRF queue on PER vs L1 ───
   const handleDebugVrfQueue = useCallback(async () => {
@@ -517,6 +583,7 @@ export const Game: FC = () => {
   const handleEndGame = useCallback(async () => {
     const program = getErProgram();
     if (!program || !wallet.publicKey || !gameConfigPda) return;
+    if (!sessionKp || !sessionTokenPda) { log("Session missing"); return; }
     setLoading("Distributing payouts...");
     try {
       const lb = await program.account.leaderboard.fetch(getLeaderboardPda(gameConfigPda));
@@ -527,18 +594,20 @@ export const Game: FC = () => {
       }
 
       await buildSignSend(program, program.methods.endGame(), {
+        authority: wallet.publicKey,
+        payer: sessionKp.publicKey,
+        sessionToken: sessionTokenPda,
         gameConfig: gameConfigPda,
         leaderboard: getLeaderboardPda(gameConfigPda),
         vault: getVaultPda(gameConfigPda),
-        authority: wallet.publicKey,
-      }, erConnection!, wallet, { remainingAccounts });
+      }, erConnection!, wallet, { remainingAccounts, sessionKp });
 
       log("Payouts distributed!");
       setLeaderboard(lb);
       setPhase("finished");
     } catch (e: any) { log(`Error: ${e.message}`); }
     setLoading("");
-  }, [getErProgram, wallet, gameConfigPda, log]);
+  }, [getErProgram, wallet, gameConfigPda, sessionKp, sessionTokenPda, erConnection, log]);
 
   // ─── Lobby countdown ───
   useEffect(() => {
@@ -687,43 +756,49 @@ export const Game: FC = () => {
             <div className="space-y-2">
               <p className="text-green-400 text-sm text-center">{gameState.playerCount} players ready!</p>
 
-              {/* Step 1: Delegate to PER */}
+              {/* Step 1: Permissions (L1, BEFORE delegation) */}
+              <div className="flex gap-2">
+                <button onClick={handleCreatePlayerPermission} disabled={!!loading}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
+                  1a. Privacy (Guess)
+                </button>
+                <button onClick={handleCreateRoundSecretPermission} disabled={!!loading}
+                  className="flex-1 bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
+                  1b. Privacy (Secret, creator)
+                </button>
+              </div>
+
+              {/* Step 2: Delegate to PER */}
               <div className="flex gap-2">
                 <button onClick={handleDelegateCreator} disabled={!!loading}
                   className="flex-1 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                  1. Delegate (Creator)
+                  2. Delegate (Creator)
                 </button>
                 <button onClick={handleDelegatePlayer} disabled={!!loading}
                   className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                  1. Delegate (Player)
+                  2. Delegate (Player)
                 </button>
               </div>
 
-              {/* Step 2: Auth TEE */}
+              {/* Step 3: Create session key (L1) — required for TEE fee payment */}
+              <button onClick={handleCreateSession} disabled={!!loading || !!sessionKp}
+                className={`w-full py-2 rounded font-medium text-sm ${sessionKp ? "bg-green-800 text-green-300" : "bg-sky-600 hover:bg-sky-500 disabled:bg-gray-700"}`}>
+                {sessionKp ? `3. Session ${sessionKp.publicKey.toBase58().slice(0,8)}… ✓` : "3. Create Session (L1)"}
+              </button>
+
+              {/* Step 4: Auth TEE */}
               <button onClick={handleAuthTee} disabled={!!loading || !!erConnection}
                 className={`w-full py-2 rounded font-medium text-sm ${erConnection ? "bg-green-800 text-green-300" : "bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700"}`}>
-                {erConnection ? "2. TEE Authenticated ✓" : "2. Auth TEE"}
+                {erConnection ? "4. TEE Authenticated ✓" : "4. Auth TEE"}
               </button>
 
-              {/* Step 3: Permissions (privacy) — each TX signed alone, see permission bundle bug */}
-              <div className="flex gap-2">
-                <button onClick={handleCreatePlayerPermission} disabled={!!loading || !erConnection}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                  3a. Privacy (Guess)
-                </button>
-                <button onClick={handleCreateRoundSecretPermission} disabled={!!loading || !erConnection}
-                  className="flex-1 bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                  3b. Privacy (Secret, creator)
-                </button>
-              </div>
-
-              {/* Step 4: Start Game + VRF on PER (creator only) — must run AFTER permissions */}
-              <button onClick={handleStartGame} disabled={!!loading || !erConnection || gameState.status?.playing !== undefined}
+              {/* Step 5: Start Game + VRF on PER (creator only) */}
+              <button onClick={handleStartGame} disabled={!!loading || !erConnection || !sessionKp || gameState.status?.playing !== undefined}
                 className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                {gameState.status?.playing !== undefined ? "Game Started ✓" : "4. Start Game + VRF (PER, creator)"}
+                {gameState.status?.playing !== undefined ? "Game Started ✓" : "5. Start Game + VRF (PER, creator)"}
               </button>
 
-              {/* Step 5: Enter game (switch to playing phase) */}
+              {/* Step 6: Enter game (switch to playing phase) */}
               <button onClick={async () => {
                 if (!erConnection || !gameConfigPda) return;
                 const program = getErProgram();
@@ -741,10 +816,10 @@ export const Game: FC = () => {
                 } catch (e: any) { log(`Error: ${e.message}`); }
               }} disabled={!erConnection}
                 className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 py-2 rounded font-medium text-sm">
-                5. Enter Game
+                6. Enter Game
               </button>
 
-              <p className="text-gray-500 text-xs text-center">Creator: 1→2→3a→3b→4→5 | Player: 1→2→3a→5</p>
+              <p className="text-gray-500 text-xs text-center">Creator: 1a→1b→2→3→4→5→6 | Player: 1a→2→3→4→6</p>
 
               <button onClick={handleDebugVrfQueue} disabled={!!loading}
                 className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 py-1 rounded text-xs text-gray-300">
