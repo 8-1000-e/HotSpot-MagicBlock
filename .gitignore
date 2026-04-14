@@ -1,6 +1,9 @@
 target/
 .anchor/
 .bolt/
+.next/
+.surfpool/
 node_modules/
 test-ledger/
+magicblock-test-storage/
 .DS_Store

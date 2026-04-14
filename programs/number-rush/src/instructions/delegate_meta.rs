@@ -27,7 +27,8 @@ pub fn handler(ctx: Context<DelegateMeta>) -> Result<()>
 #[delegate]
 #[derive(Accounts)]
 pub struct DelegateMeta<'info> {
-    pub game_config: Account<'info, GameConfig>,
+    /// CHECK: game config reference for PDA seeds (may already be delegated)
+    pub game_config: UncheckedAccount<'info>,
     #[account(mut, del)]
     pub leaderboard: Box<Account<'info, Leaderboard>>,
     #[account(mut, del)]

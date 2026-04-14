@@ -8,7 +8,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("3ufsJSDXPz2kSWuZr9bSPM4azb9u8PanYgNDsrK9iohQ");
+declare_id!("4cukexYDjNTH9pRXReXJQS6g7ndYQQ6FEQV4guFQ5i6p");
 
 #[ephemeral]
 #[program]
@@ -45,6 +45,10 @@ pub mod number_rush {
 
     pub fn start_game(ctx: Context<StartGame>) -> Result<()> {
         instructions::start_game::handler(ctx)
+    }
+
+    pub fn request_target(ctx: Context<RequestTarget>) -> Result<()> {
+        instructions::request_target::handler(ctx)
     }
 
     pub fn vrf_callback_set_target(

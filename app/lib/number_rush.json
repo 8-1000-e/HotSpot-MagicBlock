@@ -1,0 +1,2513 @@
+{
+  "address": "4cukexYDjNTH9pRXReXJQS6g7ndYQQ6FEQV4guFQ5i6p",
+  "metadata": {
+    "name": "number_rush",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "create_player_permission",
+      "discriminator": [
+        166,
+        251,
+        27,
+        79,
+        162,
+        158,
+        149,
+        149
+      ],
+      "accounts": [
+        {
+          "name": "game_config"
+        },
+        {
+          "name": "player_authority"
+        },
+        {
+          "name": "player_guess",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  117,
+                  101,
+                  115,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              },
+              {
+                "kind": "account",
+                "path": "player_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "permission",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Server wallet — pays for the permission account rent"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "permission_program",
+          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_round_secret_permission",
+      "discriminator": [
+        95,
+        40,
+        217,
+        90,
+        150,
+        112,
+        189,
+        78
+      ],
+      "accounts": [
+        {
+          "name": "game_config"
+        },
+        {
+          "name": "round_secret",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  99,
+                  114,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "permission",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "permission_program",
+          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegate_game",
+      "discriminator": [
+        116,
+        183,
+        70,
+        107,
+        112,
+        223,
+        122,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "buffer_game_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_game_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_game_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "buffer_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "buffer_round_secret",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "round_secret"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_round_secret",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "round_secret"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_round_secret",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "round_secret"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "round_secret",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "owner_program",
+          "address": "4cukexYDjNTH9pRXReXJQS6g7ndYQQ6FEQV4guFQ5i6p"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegate_meta",
+      "discriminator": [
+        252,
+        185,
+        232,
+        131,
+        23,
+        51,
+        35,
+        8
+      ],
+      "accounts": [
+        {
+          "name": "game_config"
+        },
+        {
+          "name": "buffer_leaderboard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "leaderboard"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_leaderboard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "leaderboard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_leaderboard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "leaderboard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "leaderboard",
+          "writable": true
+        },
+        {
+          "name": "buffer_round_reveal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "round_reveal"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_round_reveal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "round_reveal"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_round_reveal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "round_reveal"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "round_reveal",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "owner_program",
+          "address": "4cukexYDjNTH9pRXReXJQS6g7ndYQQ6FEQV4guFQ5i6p"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegate_player",
+      "discriminator": [
+        235,
+        159,
+        245,
+        102,
+        161,
+        199,
+        254,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "game_config"
+        },
+        {
+          "name": "player_authority"
+        },
+        {
+          "name": "buffer_player_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_state"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_player_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_state"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_player_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_state"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "player_state",
+          "writable": true
+        },
+        {
+          "name": "buffer_player_guess",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_guess"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                177,
+                32,
+                96,
+                238,
+                217,
+                196,
+                17,
+                243,
+                55,
+                198,
+                225,
+                210,
+                198,
+                226,
+                29,
+                254,
+                182,
+                185,
+                95,
+                21,
+                205,
+                169,
+                134,
+                158,
+                78,
+                235,
+                233,
+                121,
+                188,
+                231,
+                217,
+                132
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_player_guess",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_guess"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_player_guess",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_guess"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "player_guess",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Server wallet — pays for delegation"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner_program",
+          "address": "4cukexYDjNTH9pRXReXJQS6g7ndYQQ6FEQV4guFQ5i6p"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "end_game",
+      "discriminator": [
+        224,
+        135,
+        245,
+        99,
+        67,
+        175,
+        121,
+        252
+      ],
+      "accounts": [
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "leaderboard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  100,
+                  101,
+                  114,
+                  98,
+                  111,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Creator of the game — receives platform fee, must match game_config.authority"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magic_context",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "end_round",
+      "discriminator": [
+        54,
+        47,
+        1,
+        200,
+        250,
+        6,
+        144,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "leaderboard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  100,
+                  101,
+                  114,
+                  98,
+                  111,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "round_reveal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  118,
+                  101,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "round_secret",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  99,
+                  114,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_game",
+      "discriminator": [
+        251,
+        46,
+        12,
+        208,
+        184,
+        148,
+        157,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "game_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "game_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "leaderboard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  100,
+                  101,
+                  114,
+                  98,
+                  111,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "round_reveal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  118,
+                  101,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "round_secret",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  99,
+                  114,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "game_id",
+          "type": "u64"
+        },
+        {
+          "name": "bet_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "process_undelegation",
+      "discriminator": [
+        196,
+        28,
+        41,
+        206,
+        48,
+        37,
+        51,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "base_account",
+          "writable": true
+        },
+        {
+          "name": "buffer"
+        },
+        {
+          "name": "payer",
+          "writable": true
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "account_seeds",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "request_target",
+      "discriminator": [
+        223,
+        55,
+        184,
+        56,
+        205,
+        83,
+        40,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "round_secret",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  99,
+                  114,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "oracle_queue",
+          "writable": true,
+          "address": "Cuj97ggrhhidhbu39TijNVqE74xvKJ69gDervRUXAxGh"
+        },
+        {
+          "name": "program_identity",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vrf_program",
+          "address": "Vrf1RNUjXmQGjmQrQLvJHs9SNkvDJEsRVFPkfSQUwGz"
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "spawn_player",
+      "discriminator": [
+        128,
+        8,
+        217,
+        15,
+        73,
+        1,
+        73,
+        51
+      ],
+      "accounts": [
+        {
+          "name": "player_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player_guess",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  117,
+                  101,
+                  115,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player",
+          "docs": [
+            "The player joining the game — pays only the bet, signs to authorize"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Server wallet — pays for PDA rent (player_state + player_guess)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "start_game",
+      "discriminator": [
+        249,
+        47,
+        252,
+        172,
+        184,
+        162,
+        245,
+        14
+      ],
+      "accounts": [
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "submit_guess",
+      "discriminator": [
+        61,
+        124,
+        32,
+        227,
+        64,
+        198,
+        252,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "player_state",
+          "writable": true
+        },
+        {
+          "name": "player_guess",
+          "writable": true
+        },
+        {
+          "name": "game_config",
+          "writable": true
+        },
+        {
+          "name": "round_secret",
+          "docs": [
+            "Program reads target from here — players can't read via RPC (permission: members=[])"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  99,
+                  114,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "player_state",
+            "player_guess"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "guess",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "vrf_callback_set_target",
+      "discriminator": [
+        218,
+        164,
+        25,
+        159,
+        81,
+        248,
+        192,
+        95
+      ],
+      "accounts": [
+        {
+          "name": "vrf_program_identity",
+          "docs": [
+            "VRF program identity — only the Ephemeral VRF program can sign here."
+          ],
+          "signer": true,
+          "address": "9irBy75QS2BN81FUgXuHcjqceJJRuc9oDkAe8TKVvvAw"
+        },
+        {
+          "name": "round_secret",
+          "docs": [
+            "The RoundSecret PDA. Owned by THIS program → direct mutation OK."
+          ],
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "randomness",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GameConfig",
+      "discriminator": [
+        45,
+        146,
+        146,
+        33,
+        170,
+        69,
+        96,
+        133
+      ]
+    },
+    {
+      "name": "Leaderboard",
+      "discriminator": [
+        247,
+        186,
+        238,
+        243,
+        194,
+        30,
+        9,
+        36
+      ]
+    },
+    {
+      "name": "PlayerGuess",
+      "discriminator": [
+        241,
+        237,
+        140,
+        80,
+        155,
+        21,
+        242,
+        228
+      ]
+    },
+    {
+      "name": "PlayerState",
+      "discriminator": [
+        56,
+        3,
+        60,
+        86,
+        174,
+        16,
+        244,
+        195
+      ]
+    },
+    {
+      "name": "RoundReveal",
+      "discriminator": [
+        132,
+        43,
+        180,
+        66,
+        165,
+        70,
+        192,
+        109
+      ]
+    },
+    {
+      "name": "RoundSecret",
+      "discriminator": [
+        81,
+        230,
+        76,
+        166,
+        69,
+        99,
+        137,
+        216
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "GameNotWaiting",
+      "msg": "Game is not in Waiting state"
+    },
+    {
+      "code": 6001,
+      "name": "GameNotPlaying",
+      "msg": "Game is not in Playing state"
+    },
+    {
+      "code": 6002,
+      "name": "GameFinished",
+      "msg": "Game is already finished"
+    },
+    {
+      "code": 6003,
+      "name": "TooManyPlayers",
+      "msg": "Too many players"
+    },
+    {
+      "code": 6004,
+      "name": "PlayerEliminated",
+      "msg": "Player is eliminated"
+    },
+    {
+      "code": 6005,
+      "name": "AlreadyFound",
+      "msg": "Player already found the number this round"
+    },
+    {
+      "code": 6006,
+      "name": "GuessOutOfRange",
+      "msg": "Guess out of range (0-1000)"
+    },
+    {
+      "code": 6007,
+      "name": "MaxAttemptsReached",
+      "msg": "Max attempts reached for this round"
+    },
+    {
+      "code": 6008,
+      "name": "TimerExpired",
+      "msg": "Timer expired for this attempt"
+    },
+    {
+      "code": 6009,
+      "name": "RoundNotOver",
+      "msg": "Round is not over yet"
+    },
+    {
+      "code": 6010,
+      "name": "AllRoundsCompleted",
+      "msg": "All rounds completed"
+    },
+    {
+      "code": 6011,
+      "name": "LobbyNotOver",
+      "msg": "Lobby not over yet"
+    },
+    {
+      "code": 6012,
+      "name": "NotEnoughPlayers",
+      "msg": "Not enough players"
+    },
+    {
+      "code": 6013,
+      "name": "AlreadyDistributed",
+      "msg": "Payout already distributed"
+    },
+    {
+      "code": 6014,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidBetAmount",
+      "msg": "Invalid bet amount (must be > 0)"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidGameStatus",
+      "msg": "Game is not in the expected status"
+    },
+    {
+      "code": 6017,
+      "name": "MaxPlayersReached",
+      "msg": "Max players reached for this game"
+    }
+  ],
+  "types": [
+    {
+      "name": "Direction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "Higher"
+          },
+          {
+            "name": "Lower"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "game_id",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "GameStatus"
+              }
+            }
+          },
+          {
+            "name": "active_players",
+            "type": "u8"
+          },
+          {
+            "name": "current_round",
+            "type": "u8"
+          },
+          {
+            "name": "round_start_slot",
+            "type": "u64"
+          },
+          {
+            "name": "start_time",
+            "type": "i64"
+          },
+          {
+            "name": "lobby_end",
+            "type": "i64"
+          },
+          {
+            "name": "bet_amount",
+            "docs": [
+              "Bet amount in lamports"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Creator of the game"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "players",
+            "docs": [
+              "Player state PDAs registry (max 10)"
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                10
+              ]
+            }
+          },
+          {
+            "name": "player_count",
+            "type": "u8"
+          },
+          {
+            "name": "round_found_count",
+            "docs": [
+              "Number of players who found the number this round"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "eliminated_count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Waiting"
+          },
+          {
+            "name": "Playing"
+          },
+          {
+            "name": "Finished"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Leaderboard",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "entries",
+            "docs": [
+              "Player pubkeys sorted by rank (index 0 = best)"
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                10
+              ]
+            }
+          },
+          {
+            "name": "attempts",
+            "docs": [
+              "Total attempts per player (parallel array)"
+            ],
+            "type": {
+              "array": [
+                "u16",
+                10
+              ]
+            }
+          },
+          {
+            "name": "times",
+            "docs": [
+              "Total time per player in ms (tiebreaker)"
+            ],
+            "type": {
+              "array": [
+                "u64",
+                10
+              ]
+            }
+          },
+          {
+            "name": "count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerGuess",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "guesses",
+            "type": {
+              "array": [
+                "u16",
+                15
+              ]
+            }
+          },
+          {
+            "name": "count",
+            "type": "u8"
+          },
+          {
+            "name": "last_guess_slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "alive",
+            "type": "bool"
+          },
+          {
+            "name": "proximity",
+            "docs": [
+              "Proximity level (0-6)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": {
+                "name": "Direction"
+              }
+            }
+          },
+          {
+            "name": "round_attempts",
+            "type": "u8"
+          },
+          {
+            "name": "total_attempts",
+            "docs": [
+              "Total attempts across all rounds (scoring)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "found_this_round",
+            "type": "bool"
+          },
+          {
+            "name": "total_time_slot",
+            "docs": [
+              "Total time in ms to find numbers (tiebreaker)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "inactive_rounds",
+            "docs": [
+              "Consecutive rounds without submission (>= 3 = eliminated)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoundReveal",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "targets",
+            "docs": [
+              "Target numbers revealed after each round"
+            ],
+            "type": {
+              "array": [
+                "u16",
+                5
+              ]
+            }
+          },
+          {
+            "name": "player_attempts",
+            "docs": [
+              "Attempts per player per round"
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    10
+                  ]
+                },
+                5
+              ]
+            }
+          },
+          {
+            "name": "player_found",
+            "docs": [
+              "Whether player found the number per round"
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "bool",
+                    10
+                  ]
+                },
+                5
+              ]
+            }
+          },
+          {
+            "name": "last_revealed_round",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoundSecret",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "target_number",
+            "docs": [
+              "VRF-generated target number (0-1000)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          },
+          {
+            "name": "deposits_count",
+            "type": "u8"
+          },
+          {
+            "name": "payout_status",
+            "docs": [
+              "0 = Pending, 1 = Distributed"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

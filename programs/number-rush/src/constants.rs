@@ -19,7 +19,7 @@ pub const SECOND_PLACE_BPS: u64 = 2500; // 25%
 pub const THIRD_PLACE_BPS: u64 = 1500;  // 15%
 // 4th+ split remaining 10%
 
-// PER — TEE validators
+// PER — TEE validator (devnet)
 pub const TEE_VALIDATOR_DEVNET: Pubkey = pubkey!("FnE6VJT5QNZdedZPnCoLsARgBwoE6DeJNjBs2H1gySXA");
 
 // Permission Program

@@ -37,6 +37,7 @@ pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()>
 
 
     let diff = if guess > target { guess - target } else { target - guess };
+    msg!("guess={} target={} diff={}", guess, target, diff);
     ctx.accounts.player_state.proximity = match diff 
     {
         0 => PROXIMITY_TROUVE,
@@ -62,8 +63,9 @@ pub fn handler(ctx: Context<SubmitGuess>, guess: u16) -> Result<()>
 
     if diff == 0 {
         ctx.accounts.player_state.found_this_round = true;
-        ctx.accounts.player_state.total_time_slot += now_slot - ctx.accounts.game_config.round_start_slot;
-        ctx.accounts.game_config.round_found_count += 1;
+        ctx.accounts.player_state.total_time_slot = ctx.accounts.player_state.total_time_slot
+            .saturating_add(now_slot.saturating_sub(ctx.accounts.game_config.round_start_slot));
+        ctx.accounts.game_config.round_found_count = ctx.accounts.game_config.round_found_count.saturating_add(1);
     }
 
     Ok(())

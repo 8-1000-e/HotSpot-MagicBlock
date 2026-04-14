@@ -20,4 +20,4 @@ custom-panic = []
 [dependencies]
 anchor-lang = { version = "=0.32.1", features = ["init-if-needed"] }
 ephemeral-rollups-sdk = { version = "=0.8.0", features = ["anchor", "access-control"] }
-ephemeral-vrf-sdk = "=0.2.3"
+ephemeral-vrf-sdk = { version = "=0.2.3", features = ["anchor"] }

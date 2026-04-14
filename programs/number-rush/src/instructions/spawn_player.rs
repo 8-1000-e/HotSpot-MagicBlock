@@ -29,10 +29,18 @@ pub fn handler(ctx: Context<SpawnPlayer>) -> Result<()>
     ctx.accounts.player_guess.last_guess_slot = 0;
     ctx.accounts.player_guess.bump = ctx.bumps.player_guess;
 
-    // Transfer bet SOL: player → vault PDA
+    // Transfer bet SOL: player → vault PDA via CPI
     let bet_amount = ctx.accounts.game_config.bet_amount;
-    ctx.accounts.player.sub_lamports(bet_amount)?;
-    ctx.accounts.vault.add_lamports(bet_amount)?;
+    anchor_lang::system_program::transfer(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.player.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            },
+        ),
+        bet_amount,
+    )?;
 
     ctx.accounts.vault.total_pot += bet_amount;
     ctx.accounts.vault.deposits_count += 1;

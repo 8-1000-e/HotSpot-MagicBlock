@@ -28,7 +28,8 @@ pub fn handler(ctx: Context<DelegatePlayer>) -> Result<()>
 #[delegate]
 #[derive(Accounts)]
 pub struct DelegatePlayer<'info> {
-    pub game_config: Account<'info, GameConfig>,
+    /// CHECK: game config reference for PDA seeds (may already be delegated)
+    pub game_config: UncheckedAccount<'info>,
 
     /// CHECK: just used as seed reference (no signer required, server pays)
     pub player_authority: UncheckedAccount<'info>,
